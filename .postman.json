@@ -1,0 +1,40 @@
+{
+  "version": "0.1",
+  "project": {
+    "name": "coins-db",
+    "baseUrl": "http://127.0.0.1:8080"
+  },
+  "default": {
+    "workspace": "main",
+    "collection": "coins-db-api",
+    "environment": "local"
+  },
+  "workspaces": {
+    "main": {
+      "id": "a18e6324-7dde-4d56-8251-47c43ad8e784",
+      "name": "Helge André Gudmundsen's Workspace",
+      "type": "team"
+    }
+  },
+  "collections": {
+    "coins-db-api": {
+      "id": "3e2adf88-d928-469c-ad78-2799b34ce6c7",
+      "uid": "58528855-3e2adf88-d928-469c-ad78-2799b34ce6c7",
+      "name": "coins-db API",
+      "workspace": "main",
+      "description": "Starter collection for the coins_server REST API.",
+      "requestCount": 4
+    }
+  },
+  "environments": {
+    "local": {
+      "id": "af45968d-a8f3-43b1-aba0-f54dddd47809",
+      "uid": "58528855-af45968d-a8f3-43b1-aba0-f54dddd47809",
+      "name": "coins-db - Local",
+      "workspace": "main",
+      "variables": {
+        "base_url": "http://127.0.0.1:8080"
+      }
+    }
+  }
+}

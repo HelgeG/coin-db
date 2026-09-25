@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "API Postman Testing",
+      "trigger": "PostFileSave",
+      "description": "Runs the coins-db Postman collection with newman whenever C++ sources or build config change. Requires coins_server running on 127.0.0.1:8080.",
+      "matcher": "\\.(cpp|cc|cxx|hpp|hh|hxx|h)$|CMakeLists\\.txt$|conanfile\\.py$",
+      "action": {
+        "type": "command",
+        "command": "npx --yes newman run postman/coins-db.postman_collection.json -e postman/local.postman_environment.json --reporters cli",
+        "timeout": 180
+      }
+    }
+  ]
+}
