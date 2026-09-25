@@ -1,0 +1,216 @@
+{
+  "info": {
+    "name": "coins-db API",
+    "description": "REST API for coins-db (coins_server). Ordered flow: create a coin, read it, add an estimate and link, check the summary, verify validation, then delete. Uses {{base_url}} and passes the created id via {{coin_id}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create coin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/coins", "host": ["{{base_url}}"], "path": ["coins"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"country\": \"Norway\",\n  \"year_from\": 1963,\n  \"year_to\": 1963,\n  \"denomination\": \"50 Øre\",\n  \"coin_currency\": \"NOK\",\n  \"face_value\": 0.5\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('country echoed', () => pm.expect(body.country).to.eql('Norway'));",
+              "pm.test('assigned an id', () => pm.expect(body.id).to.be.above(0));",
+              "pm.environment.set('coin_id', body.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get coin (with relations)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/coins/{{coin_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["coins", "{{coin_id}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has value_estimates array', () => pm.expect(body.value_estimates).to.be.an('array'));",
+              "pm.test('has reference_links array', () => pm.expect(body.reference_links).to.be.an('array'));",
+              "pm.test('has images array', () => pm.expect(body.images).to.be.an('array'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "List coins",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/coins", "host": ["{{base_url}}"], "path": ["coins"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add value estimate",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/coins/{{coin_id}}/estimates",
+          "host": ["{{base_url}}"],
+          "path": ["coins", "{{coin_id}}", "estimates"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount_eur\": 120.5,\n  \"estimated_at\": \"2026-01-01\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "pm.test('amount echoed', () => pm.expect(pm.response.json().amount_eur).to.eql(120.5));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add reference link",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/coins/{{coin_id}}/links",
+          "host": ["{{base_url}}"],
+          "path": ["coins", "{{coin_id}}", "links"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"label\": \"Numista\",\n  \"url\": \"https://numista.com/x\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));"],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Summary",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/summary", "host": ["{{base_url}}"], "path": ["summary"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has a coin count', () => pm.expect(body.coin_count).to.be.at.least(1));",
+              "pm.test('total reflects the estimate', () => pm.expect(body.total_estimate_eur).to.be.at.least(120.5));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create coin - invalid (422)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/coins", "host": ["{{base_url}}"], "path": ["coins"] },
+        "body": { "mode": "raw", "raw": "{}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('reports validation errors', () => pm.expect(pm.response.json().errors).to.be.an('array').that.is.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete coin",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{base_url}}/coins/{{coin_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["coins", "{{coin_id}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get deleted coin (404)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/coins/{{coin_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["coins", "{{coin_id}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));"],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}
