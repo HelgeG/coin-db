@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Git pre-commit hook: format staged C/C++ files with clang-format (Google base).
+# Formats in place and re-stages so commits are always consistently formatted.
+# Portable: avoids bashisms (e.g. mapfile) that are missing on macOS Bash 3.2.
+
+set -eu
+
+if ! command -v clang-format >/dev/null 2>&1; then
+  echo "pre-commit: clang-format not found on PATH; skipping C++ formatting." >&2
+  exit 0
+fi
+
+count=0
+# Read NUL-separated names to handle spaces safely.
+while IFS= read -r -d '' file; do
+  case "$file" in
+    *.c|*.cc|*.cpp|*.cxx|*.h|*.hh|*.hpp|*.hxx)
+      if [ -f "$file" ]; then
+        clang-format -i --style=file "$file"
+        git add "$file"
+        count=$((count + 1))
+      fi
+      ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACM -z)
+
+if [ "$count" -gt 0 ]; then
+  echo "pre-commit: formatted $count C/C++ file(s) with clang-format." >&2
+fi
+exit 0

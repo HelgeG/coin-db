@@ -1,0 +1,17 @@
+{
+  "name": "coins",
+  "description": "coins-db development agent: C++20 core with CLI and web app. Auto-formats C/C++ on write using clang-format (Google base).",
+  "tools": ["read", "write", "shell", "grep", "glob", "code"],
+  "resources": [
+    "file://.kiro/steering/*.md",
+    "file://.kiro/specs/coins-db/*.md"
+  ],
+  "hooks": {
+    "postToolUse": [
+      {
+        "matcher": "write",
+        "command": "\"$(git rev-parse --show-toplevel)/.kiro/hooks/format-cpp.sh\""
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+# coins-db C++ formatting — based on the Google C++ style guide.
+# Applied by the pre-commit git hook and the Kiro postToolUse hook.
+---
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++20
+
+# Project adjustments on top of Google defaults:
+ColumnLimit: 100          # Google default is 80; 100 suits modern C++ signatures.
+DerivePointerAlignment: false
+PointerAlignment: Left    # int* p;  (consistent, do not derive from file)
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+...

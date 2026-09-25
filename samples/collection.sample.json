@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "coins": [
+    {
+      "id": 1,
+      "country": "Norway",
+      "denomination": "50 Øre",
+      "face_value": 0.5,
+      "coin_currency": "NOK",
+      "year_from": 1963,
+      "year_to": 1963,
+      "mint": "Kongsberg",
+      "mint_mark": null,
+      "composition": "Copper-nickel",
+      "weight_g": 4.7,
+      "diameter_mm": 22.0,
+      "grade_scale": "Norwegian",
+      "grade_numeric": null,
+      "grade_label": "1+",
+      "acquired_date": "2024-11-03",
+      "acquired_price_eur": 2.5,
+      "acquired_source": "coin fair",
+      "notes": "Handed down from grandfather.",
+      "created_at": "2025-01-10T09:00:00Z",
+      "updated_at": "2025-01-10T09:00:00Z",
+      "value_estimates": [
+        { "id": 1, "coin_id": 1, "amount_eur": 3.0, "estimated_at": "2025-01-10", "source": "Numista range" },
+        { "id": 2, "coin_id": 1, "amount_eur": 3.5, "estimated_at": "2026-01-05", "source": "re-check" }
+      ],
+      "reference_links": [
+        { "id": 1, "coin_id": 1, "label": "Numista", "url": "https://en.numista.com/catalogue/pieces1234.html" }
+      ],
+      "images": []
+    },
+    {
+      "id": 2,
+      "country": "United States",
+      "denomination": "1 Dollar",
+      "face_value": 1.0,
+      "coin_currency": "USD",
+      "year_from": 1889,
+      "year_to": 1889,
+      "mint": "New Orleans",
+      "mint_mark": "O",
+      "composition": "Silver .900",
+      "weight_g": 26.73,
+      "diameter_mm": 38.1,
+      "grade_scale": "Sheldon",
+      "grade_numeric": 63,
+      "grade_label": "MS",
+      "acquired_date": "2023-06-18",
+      "acquired_price_eur": 85.0,
+      "acquired_source": "online auction",
+      "notes": "Morgan dollar.",
+      "created_at": "2025-02-01T14:30:00Z",
+      "updated_at": "2025-02-01T14:30:00Z",
+      "value_estimates": [
+        { "id": 3, "coin_id": 2, "amount_eur": 110.0, "estimated_at": "2025-02-01", "source": "PCGS price guide" }
+      ],
+      "reference_links": [
+        { "id": 2, "coin_id": 2, "label": "PCGS", "url": "https://www.pcgs.com/coinfacts/coin/1889-o-1/7186" }
+      ],
+      "images": []
+    },
+    {
+      "id": 3,
+      "country": "Sweden",
+      "denomination": "1 Krona",
+      "face_value": 1.0,
+      "coin_currency": "SEK",
+      "year_from": 1950,
+      "year_to": 1955,
+      "mint": null,
+      "mint_mark": null,
+      "composition": "Silver .400",
+      "weight_g": 7.0,
+      "diameter_mm": 25.0,
+      "grade_scale": null,
+      "grade_numeric": null,
+      "grade_label": "VF",
+      "acquired_date": null,
+      "acquired_price_eur": null,
+      "acquired_source": null,
+      "notes": "Type example, exact year unconfirmed.",
+      "created_at": "2025-03-12T11:15:00Z",
+      "updated_at": "2025-03-12T11:15:00Z",
+      "value_estimates": [
+        { "id": 4, "coin_id": 3, "amount_eur": 6.0, "estimated_at": "2025-03-12", "source": null }
+      ],
+      "reference_links": [],
+      "images": []
+    }
+  ]
+}
