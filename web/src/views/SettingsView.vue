@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { type AccentPreference, useAccent } from '../composables/useAccent'
 import { useI18n } from '../composables/useI18n'
 import { type ThemePreference, useTheme } from '../composables/useTheme'
 import type { Locale } from '../i18n/messages'
 
 const { preference, setTheme } = useTheme()
+const { preference: accent, accents, setAccent } = useAccent()
 const { locale, locales, t, setLocale } = useI18n()
 
 const themeOptions: ThemePreference[] = ['light', 'dark', 'system']
@@ -30,6 +32,26 @@ function onLocaleChange(event: Event): void {
         </option>
       </select>
     </div>
+
+    <div class="field">
+      <label>{{ t('settings.accent') }}</label>
+      <div class="accent-options">
+        <button
+          v-for="a in accents"
+          :key="a.code"
+          type="button"
+          class="accent-swatch"
+          :class="{ 'is-selected': accent === a.code }"
+          :style="{ background: a.swatch }"
+          :aria-pressed="accent === a.code"
+          :title="a.label"
+          @click="setAccent(a.code as AccentPreference)"
+        >
+          <span class="accent-label">{{ a.label }}</span>
+        </button>
+      </div>
+      <p class="muted">{{ t('settings.accentHelp') }}</p>
+    </div>
   </section>
 
   <section class="panel">
@@ -43,3 +65,32 @@ function onLocaleChange(event: Event): void {
     <p class="muted">{{ t('settings.languageHelp') }}</p>
   </section>
 </template>
+
+<style scoped>
+.accent-options {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.accent-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: #fff;
+  font: inherit;
+}
+.accent-swatch .accent-label {
+  /* readable on any swatch color */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-weight: 600;
+}
+.accent-swatch.is-selected {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--text);
+}
+</style>
+

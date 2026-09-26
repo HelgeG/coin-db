@@ -116,9 +116,11 @@ are in **EUR**; images are copied into a **managed store**.
 - [x] Views: list/search, coin detail (with images + links + estimate history),
       add/edit forms (inline validation errors), value estimate entry, summary.
 - [x] Settings view + appearance/localization: light/dark/system theme
-      (`useTheme`, `data-theme` + CSS variables) and a hand-rolled i18n layer
-      (`useI18n`, en/nb dictionaries) with a language selector. Nav and Settings
-      are translated; remaining views translate incrementally.
+      (`useTheme`, `data-theme` + CSS variables), selectable accent color
+      (`useAccent`, `data-accent`; Violet or British Racing Green), and a
+      hand-rolled i18n layer (`useI18n`, en/nb dictionaries) with a language
+      selector. Nav and Settings are translated; remaining views translate
+      incrementally.
 - [~] End-to-end smoke test of primary flows: verified via `vue-tsc` typecheck +
       production `vite build`, plus a documented manual smoke test in
       `web/README.md`. Automated browser E2E (Playwright) deferred — no browser

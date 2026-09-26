@@ -97,6 +97,9 @@ As a collector using the web app, I want to control appearance and language.
 
 - WHEN I open Settings, THEN I can choose a light, dark, or system-follow theme,
   and the choice persists across sessions.
+- WHEN I open Settings, THEN I can choose the accent color used for buttons and
+  links (e.g. Violet or British Racing Green), independent of the theme, and the
+  choice persists across sessions.
 - WHEN I open Settings, THEN I can choose the interface language (English and
   Norwegian bokmål to start), and the choice persists across sessions.
 - WHERE a string is not yet translated, THEN the app falls back to English.

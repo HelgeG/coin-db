@@ -26,7 +26,8 @@ coins/
 ├── web/                       # web frontend (Vue 3 + Vite + TypeScript SPA)
 │   └── src/
 │       ├── views/             # route views (incl. Settings — theme + language)
-│       ├── composables/       # useTheme (dark mode), useI18n (localization)
+│       ├── composables/       # useTheme (dark mode), useAccent (accent color),
+│       │                      #   useI18n (localization)
 │       ├── i18n/              # translation dictionaries (en, nb)
 │       ├── api/               # typed REST client
 │       └── assets/main.css    # CSS variables incl. light + dark theme

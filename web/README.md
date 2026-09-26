@@ -52,6 +52,13 @@ npm run preview        # serve the built bundle locally
   driven by CSS variables in `src/assets/main.css` (a `:root` light palette and
   a `[data-theme='dark']` override). Logic lives in
   `src/composables/useTheme.ts`.
+- **Accent color**: the Settings view lets you pick the accent (highlight color
+  for buttons and links) — currently Violet (default) or British Racing Green.
+  It is independent of the light/dark theme, applied via a `data-accent`
+  attribute on `<html>` that overrides `--accent` / `--accent-content`, and
+  persisted in `localStorage`. Logic lives in `src/composables/useAccent.ts`;
+  add a new accent by extending `availableAccents` there and adding a matching
+  `[data-accent='…']` block in `src/assets/main.css`.
 - **Localization (i18n)**: a lightweight, dependency-free layer. The Settings
   view has a language selector (currently English and Norwegian bokmål). Strings
   are looked up with `t('key')`; dictionaries live in `src/i18n/messages.ts` and

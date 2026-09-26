@@ -33,6 +33,8 @@ const en: Dictionary = {
   'settings.theme.light': 'Light',
   'settings.theme.dark': 'Dark',
   'settings.theme.system': 'System',
+  'settings.accent': 'Accent color',
+  'settings.accentHelp': 'The highlight color used for buttons and links.',
   'settings.language': 'Language',
   'settings.languageHelp': 'Choose the language used across the interface.',
 }
@@ -50,6 +52,8 @@ const nb: Dictionary = {
   'settings.theme.light': 'Lyst',
   'settings.theme.dark': 'Mørkt',
   'settings.theme.system': 'System',
+  'settings.accent': 'Aksentfarge',
+  'settings.accentHelp': 'Uthevingsfargen som brukes på knapper og lenker.',
   'settings.language': 'Språk',
   'settings.languageHelp': 'Velg språket som brukes i grensesnittet.',
 }

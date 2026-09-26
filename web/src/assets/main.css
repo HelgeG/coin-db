@@ -40,6 +40,20 @@
   color-scheme: dark;
 }
 
+/* Accent color — independent of light/dark theme, selected via data-accent on
+   <html> (see composables/useAccent.ts). Placed after the theme blocks so these
+   overrides win for --accent / --accent-content in either theme.
+   `violet` is the default (the app's original purple). */
+[data-accent='violet'] {
+  --accent: #7c5cff;
+  --accent-content: #f4f1ff;
+}
+[data-accent='green'] {
+  /* British Racing Green: a deep, dark green; white content reads well on it. */
+  --accent: #004225;
+  --accent-content: #f2f7f4;
+}
+
 * {
   box-sizing: border-box;
 }

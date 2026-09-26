@@ -35,8 +35,8 @@ To replace ad-hoc notes/spreadsheets with a structured, searchable catalog that:
 
 - A command-line interface (CLI).
 - A web application. The web app additionally offers a Settings view for
-  appearance (light/dark/system theme) and language (localization; English and
-  Norwegian bokmål to start).
+  appearance (light/dark/system theme and a selectable accent color) and
+  language (localization; English and Norwegian bokmål to start).
 
 Both are built on one shared core so behavior is consistent across interfaces.
 
