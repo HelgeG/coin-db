@@ -157,6 +157,11 @@ textarea {
   align-items: flex-end;
   flex-wrap: wrap;
 }
+/* Inside a row, fields sit next to buttons; drop the stacked-form bottom
+   margin so the input boxes and buttons share the same baseline. */
+.row .field {
+  margin-bottom: 0;
+}
 
 .muted {
   color: var(--muted);
