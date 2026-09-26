@@ -27,6 +27,16 @@ See `.kiro/specs/coins-db/` for requirements, design, and tasks, and
 - [Conan 2](https://conan.io/) for dependency management
 - `clang-format` and `clang-tidy` (for formatting and linting)
 
+Optional, only for the Kiro MCP servers configured in
+`.kiro/settings/mcp.json`:
+
+- [`uv`](https://docs.astral.sh/uv/) (provides `uvx`) — used to run the
+  `sqlite` MCP server (`brew install uv`). The `sqlite` server points at
+  `demo/coins.db`.
+- Node.js / `npx` — used to run the `context7` MCP server. If it fails to
+  start with a missing-module error, clear the stale npx cache
+  (`rm -rf ~/.npm/_npx/*`) and retry.
+
 ## Build
 
 Dependencies are provided by Conan, which also generates a CMake preset

@@ -2,7 +2,11 @@
   "mcpServers": {
     "sqlite": {
       "command": "uvx",
-      "args": ["mcp-server-sqlite", "--db-path", "${workspaceFolder}/coins.db"],
+      "args": [
+        "mcp-server-sqlite",
+        "--db-path",
+        "/Users/helge.gudmundsen/repos/coins/demo/coins.db"
+      ],
       "disabled": false,
       "autoApprove": ["list_tables", "describe_table", "read_query"]
     },
