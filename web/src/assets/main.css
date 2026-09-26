@@ -5,8 +5,39 @@
   --text: #1c1c22;
   --muted: #6b6b76;
   --accent: #2f6feb;
+  --accent-content: #ffffff;
   --danger: #c33;
   --radius: 8px;
+
+  /* Surfaces derived from the palette above, themable below. */
+  --input-bg: #ffffff;
+  --th-bg: #fafafb;
+  --row-hover: #fafafe;
+  --error-bg: #fff5f5;
+  --image-placeholder: #f0f0f3;
+
+  color-scheme: light;
+}
+
+/* Dark theme — palette inspired by the less-web Elixir-dark scheme:
+   dark slate surfaces with a violet accent. Applied via data-theme on <html>. */
+[data-theme='dark'] {
+  --bg: #1a1d23;
+  --panel: #23272f;
+  --border: #363b45;
+  --text: #e6e7ea;
+  --muted: #9aa0ab;
+  --accent: #7c5cff;
+  --accent-content: #f4f1ff;
+  --danger: #f2686b;
+
+  --input-bg: #1f2229;
+  --th-bg: #2a2f38;
+  --row-hover: #2a2f38;
+  --error-bg: #33232a;
+  --image-placeholder: #2a2f38;
+
+  color-scheme: dark;
 }
 
 * {
@@ -90,7 +121,7 @@ h2 {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-content);
 }
 .btn-primary:hover {
   text-decoration: none;
@@ -116,12 +147,12 @@ td {
   border-bottom: 1px solid var(--border);
 }
 th {
-  background: #fafafb;
+  background: var(--th-bg);
   font-size: 0.85rem;
   color: var(--muted);
 }
 tbody tr:hover {
-  background: #fafafe;
+  background: var(--row-hover);
 }
 
 label {
@@ -138,7 +169,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font: inherit;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
 }
 
@@ -174,7 +205,7 @@ textarea {
   border-radius: var(--radius);
   padding: 0.5rem 0.75rem;
   margin-bottom: 1rem;
-  background: #fff5f5;
+  background: var(--error-bg);
 }
 .actions {
   display: flex;
@@ -205,14 +236,14 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  background: #fff;
+  background: var(--panel);
 }
 .image-card img {
   display: block;
   width: 100%;
   height: 150px;
   object-fit: cover;
-  background: #f0f0f3;
+  background: var(--image-placeholder);
 }
 .image-card figcaption {
   display: flex;
