@@ -3,6 +3,8 @@
     "sqlite": {
       "command": "uvx",
       "args": [
+        "--with",
+        "mcp==1.0.0",
         "mcp-server-sqlite",
         "--db-path",
         "/Users/helge.gudmundsen/repos/coins/demo/coins.db"
