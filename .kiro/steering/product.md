@@ -34,7 +34,9 @@ To replace ad-hoc notes/spreadsheets with a structured, searchable catalog that:
 ## Interfaces
 
 - A command-line interface (CLI).
-- A web application.
+- A web application. The web app additionally offers a Settings view for
+  appearance (light/dark/system theme) and language (localization; English and
+  Norwegian bokmål to start).
 
 Both are built on one shared core so behavior is consistent across interfaces.
 

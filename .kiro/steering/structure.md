@@ -24,8 +24,17 @@ coins/
 ├── server/                    # coins_server REST API executable
 │   └── src/
 ├── web/                       # web frontend (Vue 3 + Vite + TypeScript SPA)
+│   └── src/
+│       ├── views/             # route views (incl. Settings — theme + language)
+│       ├── composables/       # useTheme (dark mode), useI18n (localization)
+│       ├── i18n/              # translation dictionaries (en, nb)
+│       ├── api/               # typed REST client
+│       └── assets/main.css    # CSS variables incl. light + dark theme
 ├── samples/                   # importable example collection (demo/seed data)
-├── scripts/                   # helper scripts (e.g. seed.sh)
+│   ├── collection.sample.json # coins, estimates, links (image metadata empty)
+│   └── images/                # synthetic labeled placeholder coin images
+├── scripts/                   # helper scripts: seed.sh, seed-images.sh,
+│                              #   gen-sample-images.sh
 ├── tests/                     # unit + integration tests
 │   ├── core/
 │   ├── cli/

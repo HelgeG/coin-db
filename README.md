@@ -96,6 +96,17 @@ $CLI --data-dir mydata list
 $CLI --data-dir mydata summary
 ```
 
+Optionally attach the sample placeholder images (labeled discs under
+`samples/images/`) to the seeded coins. Run this after `seed.sh`:
+
+```bash
+./scripts/seed-images.sh mydata   # copies samples/images/*.png into the store
+```
+
+The placeholders are synthetic (not real coin photos); regenerate them with
+`./scripts/gen-sample-images.sh` (needs `rsvg-convert`, e.g.
+`brew install librsvg`).
+
 ### Web frontend
 
 A Vue 3 + Vite + TypeScript SPA lives in `web/` and talks to the running

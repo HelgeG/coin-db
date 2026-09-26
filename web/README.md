@@ -42,6 +42,23 @@ npm run preview        # serve the built bundle locally
   validation errors are shown inline.
 - **Summary** (`/summary`) — collection totals and per-currency face value, plus
   a JSON export link.
+- **Settings** (`/settings`) — appearance (theme) and language preferences.
+
+## Appearance & language
+
+- **Dark mode**: the Settings view offers Light / Dark / System. The choice is
+  applied via a `data-theme` attribute on `<html>` and persisted in
+  `localStorage`; `System` follows the OS `prefers-color-scheme`. Colors are
+  driven by CSS variables in `src/assets/main.css` (a `:root` light palette and
+  a `[data-theme='dark']` override). Logic lives in
+  `src/composables/useTheme.ts`.
+- **Localization (i18n)**: a lightweight, dependency-free layer. The Settings
+  view has a language selector (currently English and Norwegian bokmål). Strings
+  are looked up with `t('key')`; dictionaries live in `src/i18n/messages.ts` and
+  the composable in `src/composables/useI18n.ts`. English is the fallback for any
+  missing key. Translation coverage is being expanded view by view (nav and
+  Settings are translated first); add keys to `messages.ts` and swap literals for
+  `t('...')` to localize more.
 
 ## Manual smoke test
 

@@ -91,6 +91,16 @@ As a collector, I want to back up and move my data.
 - WHEN I import a previously exported file, THEN coins are added/updated without
   corrupting existing data.
 
+### 7. Appearance and language (web app)
+
+As a collector using the web app, I want to control appearance and language.
+
+- WHEN I open Settings, THEN I can choose a light, dark, or system-follow theme,
+  and the choice persists across sessions.
+- WHEN I open Settings, THEN I can choose the interface language (English and
+  Norwegian bokmål to start), and the choice persists across sessions.
+- WHERE a string is not yet translated, THEN the app falls back to English.
+
 ## Data Attributes (summary)
 
 | Attribute            | Notes                                             |
