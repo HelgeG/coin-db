@@ -6,6 +6,9 @@
   --muted: #6b6b76;
   --accent: #2f6feb;
   --accent-content: #ffffff;
+  /* Accent used for text/links; may differ from the fill accent so it stays
+     legible on the page background. Defaults to the fill accent. */
+  --accent-link: var(--accent);
   --danger: #c33;
   --radius: 8px;
 
@@ -29,6 +32,7 @@
   --muted: #9aa0ab;
   --accent: #7c5cff;
   --accent-content: #f4f1ff;
+  --accent-link: var(--accent);
   --danger: #f2686b;
 
   --input-bg: #1f2229;
@@ -47,11 +51,22 @@
 [data-accent='violet'] {
   --accent: #7c5cff;
   --accent-content: #f4f1ff;
+  --accent-link: var(--accent);
 }
 [data-accent='green'] {
-  /* British Racing Green: a deep, dark green; white content reads well on it. */
+  /* British Racing Green: a deep, dark green; white content reads well on it.
+     Used as a fill (buttons). For text/links on a light background it is still
+     legible, so --accent-link tracks the fill here. */
   --accent: #004225;
   --accent-content: #f2f7f4;
+  --accent-link: #0a5c37;
+}
+/* On the dark theme the deep green is too dark to read as text on the dark
+   background, so links/tabs use a brighter green while buttons keep the deep
+   racing-green fill. Combined selector (0,2,0) beats the single-attribute
+   rules above, regardless of source order. */
+[data-theme='dark'][data-accent='green'] {
+  --accent-link: #4fbf87;
 }
 
 * {
@@ -67,7 +82,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-link);
   text-decoration: none;
 }
 a:hover {
@@ -130,7 +145,7 @@ h2 {
   cursor: pointer;
 }
 .btn:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-link);
 }
 .btn-primary {
   background: var(--accent);

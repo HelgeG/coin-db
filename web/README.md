@@ -56,9 +56,13 @@ npm run preview        # serve the built bundle locally
   for buttons and links) — currently Violet (default) or British Racing Green.
   It is independent of the light/dark theme, applied via a `data-accent`
   attribute on `<html>` that overrides `--accent` / `--accent-content`, and
-  persisted in `localStorage`. Logic lives in `src/composables/useAccent.ts`;
-  add a new accent by extending `availableAccents` there and adding a matching
-  `[data-accent='…']` block in `src/assets/main.css`.
+  persisted in `localStorage`. Text/links use a separate `--accent-link`
+  variable so a deep accent (e.g. racing green) stays legible — on the dark
+  theme, green links use a brighter shade while buttons keep the deep fill.
+  Logic lives in `src/composables/useAccent.ts`; add a new accent by extending
+  `availableAccents` there and adding a matching `[data-accent='…']` block in
+  `src/assets/main.css` (plus a `[data-theme='dark'][data-accent='…']` override
+  if the text color needs to differ in dark mode).
 - **Localization (i18n)**: a lightweight, dependency-free layer. The Settings
   view has a language selector (currently English and Norwegian bokmål). Strings
   are looked up with `t('key')`; dictionaries live in `src/i18n/messages.ts` and
