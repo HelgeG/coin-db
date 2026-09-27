@@ -88,7 +88,7 @@ class SummaryServiceTest : public ::testing::Test {
   void add_estimate(Id coin_id, double amount, std::string date) {
     ValueEstimate est;
     est.coin_id = coin_id;
-    est.amount_eur = amount;
+    est.amount = amount;
     est.estimated_at = std::move(date);
     EXPECT_TRUE(estimates_.add(est).has_value());
   }

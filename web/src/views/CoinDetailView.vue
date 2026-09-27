@@ -4,12 +4,14 @@ import { RouterLink, useRouter } from 'vue-router'
 
 import { api, ApiError, imageUrl } from '../api/client'
 import type { CoinDetail, ImageKind } from '../api/types'
+import { useBaseCurrency } from '../composables/useBaseCurrency'
 import { useI18n } from '../composables/useI18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 
-const { t, d, eur } = useI18n()
+const { t, d, money } = useI18n()
+const { code: baseCurrencyCode, ensureLoaded } = useBaseCurrency()
 
 const coinId = computed(() => Number(props.id))
 const coin = ref<CoinDetail | null>(null)
@@ -24,7 +26,7 @@ const faceValueText = computed(() => {
   return unitName ? `${c.face_value} ${unitName}` : String(c.face_value)
 })
 
-const estimateForm = reactive({ amount_eur: '', estimated_at: '', source: '' })
+const estimateForm = reactive({ amount: '', estimated_at: '', source: '' })
 const linkForm = reactive({ label: '', url: '' })
 const imageForm = reactive({ kind: '' as '' | ImageKind, caption: '' })
 const imageFile = ref<File | null>(null)
@@ -54,11 +56,11 @@ async function addEstimate(): Promise<void> {
   actionError.value = null
   try {
     await api.addEstimate(coinId.value, {
-      amount_eur: Number(estimateForm.amount_eur),
+      amount: Number(estimateForm.amount),
       estimated_at: estimateForm.estimated_at || undefined,
       source: estimateForm.source || null,
     })
-    estimateForm.amount_eur = ''
+    estimateForm.amount = ''
     estimateForm.estimated_at = ''
     estimateForm.source = ''
     await load()
@@ -136,7 +138,10 @@ async function deleteCoin(): Promise<void> {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  void ensureLoaded()
+  void load()
+})
 </script>
 
 <template>
@@ -163,26 +168,26 @@ onMounted(load)
         <dt>{{ t('coin.composition') }}</dt><dd>{{ coin.composition?.name ?? '—' }}</dd>
         <dt>{{ t('coin.weightDiameter') }}</dt><dd>{{ coin.weight_g ?? '—' }} g / {{ coin.diameter_mm ?? '—' }} mm</dd>
         <dt>{{ t('coin.grade') }}</dt><dd>{{ coin.grade_scale ?? '—' }} {{ coin.grade_numeric ?? '' }} {{ coin.grade_label ?? '' }}</dd>
-        <dt>{{ t('coin.acquired') }}</dt><dd>{{ coin.acquired_date ? d(coin.acquired_date) : '—' }} {{ coin.acquired_price_eur != null ? t('coin.acquiredForPrice', { price: eur(coin.acquired_price_eur) }) : '' }} {{ coin.acquired_source ?? '' }}</dd>
+        <dt>{{ t('coin.acquired') }}</dt><dd>{{ coin.acquired_date ? d(coin.acquired_date) : '—' }} {{ coin.acquired_price != null ? t('coin.acquiredForPrice', { price: money(coin.acquired_price, baseCurrencyCode) }) : '' }} {{ coin.acquired_source ?? '' }}</dd>
         <dt>{{ t('coin.notes') }}</dt><dd>{{ coin.notes ?? '—' }}</dd>
       </dl>
     </section>
 
     <section class="panel">
-      <h2>{{ t('coin.valueEstimates') }}</h2>
+      <h2>{{ t('coin.valueEstimates', { currency: baseCurrencyCode }) }}</h2>
       <table>
         <thead><tr><th>{{ t('coin.date') }}</th><th>{{ t('coin.amount') }}</th><th>{{ t('coin.source') }}</th></tr></thead>
         <tbody>
           <tr v-for="est in coin.value_estimates" :key="est.id">
             <td>{{ d(est.estimated_at) }}</td>
-            <td>{{ eur(est.amount_eur) }}</td>
+            <td>{{ money(est.amount, baseCurrencyCode) }}</td>
             <td>{{ est.source ?? '' }}</td>
           </tr>
           <tr v-if="coin.value_estimates.length === 0"><td colspan="3" class="muted">{{ t('coin.noEstimates') }}</td></tr>
         </tbody>
       </table>
       <form class="row" style="margin-top: 0.75rem" @submit.prevent="addEstimate">
-        <div class="field"><label>{{ t('coin.amountEur') }}</label><input v-model="estimateForm.amount_eur" type="number" step="0.01" required /></div>
+        <div class="field"><label>{{ t('coin.amountCurrency', { currency: baseCurrencyCode }) }}</label><input v-model="estimateForm.amount" type="number" step="0.01" required /></div>
         <div class="field"><label>{{ t('coin.date') }}</label><input v-model="estimateForm.estimated_at" type="date" /></div>
         <div class="field"><label>{{ t('coin.source') }}</label><input v-model="estimateForm.source" /></div>
         <button type="submit" class="btn btn-primary">{{ t('coin.addEstimate') }}</button>

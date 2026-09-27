@@ -177,7 +177,7 @@ TEST_F(ServerAppTest, AddEstimateThenSummary) {
   const coins::Id id = create_coin();
   httplib::Client cli = client();
 
-  const json estimate = {{"amount_eur", 100.0}, {"estimated_at", "2026-01-01"}};
+  const json estimate = {{"amount", 100.0}, {"estimated_at", "2026-01-01"}};
   const auto add =
       cli.Post("/coins/" + std::to_string(id) + "/estimates", estimate.dump(), "application/json");
   ASSERT_TRUE(add);
@@ -366,6 +366,52 @@ TEST_F(ServerAppTest, ExportReturnsJsonCollection) {
   ASSERT_TRUE(res);
   EXPECT_EQ(res->status, 200);
   EXPECT_TRUE(json::parse(res->body).at("coins").is_array());
+}
+
+TEST_F(ServerAppTest, GetSettingsDefaultsToEur) {
+  httplib::Client cli = client();
+  const auto res = cli.Get("/settings");
+  ASSERT_TRUE(res);
+  EXPECT_EQ(res->status, 200);
+  const json base = json::parse(res->body).at("base_currency");
+  ASSERT_FALSE(base.is_null());
+  EXPECT_EQ(base.at("code").get<std::string>(), "EUR");
+  EXPECT_FALSE(base.at("name").get<std::string>().empty());
+  EXPECT_GT(base.at("id").get<coins::Id>(), 0);
+}
+
+TEST_F(ServerAppTest, GetSettingsLocalizedByLangParam) {
+  httplib::Client cli = client();
+  const auto en = cli.Get("/settings");
+  ASSERT_TRUE(en);
+  EXPECT_EQ(en->status, 200);
+  const std::string en_name =
+      json::parse(en->body).at("base_currency").at("name").get<std::string>();
+
+  const auto nb = cli.Get("/settings?lang=nb");
+  ASSERT_TRUE(nb);
+  EXPECT_EQ(nb->status, 200);
+  const json nb_base = json::parse(nb->body).at("base_currency");
+  // Same entry (EUR), a localized name for the requested language.
+  EXPECT_EQ(nb_base.at("code").get<std::string>(), "EUR");
+  EXPECT_FALSE(nb_base.at("name").get<std::string>().empty());
+}
+
+TEST_F(ServerAppTest, PutSettingsSetsBaseCurrencyByCode) {
+  httplib::Client cli = client();
+
+  // Switch the base currency to NOK (by code); the response reflects the change.
+  const json body = {{"base_currency", "NOK"}};
+  const auto put = cli.Put("/settings", body.dump(), "application/json");
+  ASSERT_TRUE(put);
+  EXPECT_EQ(put->status, 200);
+  EXPECT_EQ(json::parse(put->body).at("base_currency").at("code").get<std::string>(), "NOK");
+
+  // A subsequent GET reflects the persisted change.
+  const auto get = cli.Get("/settings");
+  ASSERT_TRUE(get);
+  EXPECT_EQ(get->status, 200);
+  EXPECT_EQ(json::parse(get->body).at("base_currency").at("code").get<std::string>(), "NOK");
 }
 
 }  // namespace

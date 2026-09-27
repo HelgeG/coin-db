@@ -60,6 +60,9 @@ coins_add_test(core_collection_io_test core/collection_io_test.cpp)
 # Phase 7 — application facade.
 coins_add_test(core_collection_service_test core/collection_service_test.cpp)
 
+# Phase 14 — collection base-currency settings.
+coins_add_test(core_settings_service_test core/settings_service_test.cpp)
+
 # Phase 7 — CLI. Links the CLI library (which exposes cli_app.hpp) and drives it
 # with injected I/O streams. Not via coins_add_test since it needs coins::cli_lib.
 add_executable(cli_app_test cli/cli_app_test.cpp)

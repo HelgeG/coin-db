@@ -175,24 +175,24 @@ TEST(ValidationTest, ReferenceLinkRequiresLabelAndValidUrl) {
 
 TEST(ValidationTest, ValidValueEstimatePasses) {
   ValueEstimate estimate;
-  estimate.amount_eur = 12.50;
+  estimate.amount = 12.50;
   estimate.estimated_at = "2026-01-15";
   EXPECT_TRUE(coins::validate_value_estimate(estimate).has_value());
 }
 
 TEST(ValidationTest, ValueEstimateRejectsNegativeAmount) {
   ValueEstimate estimate;
-  estimate.amount_eur = -1.0;
+  estimate.amount = -1.0;
   estimate.estimated_at = "2026-01-15";
   const auto result = coins::validate_value_estimate(estimate);
   ASSERT_FALSE(result.has_value());
-  EXPECT_TRUE(has_error_for(result.error(), "amount_eur"));
+  EXPECT_TRUE(has_error_for(result.error(), "amount"));
 }
 
 TEST(ValidationTest, ValueEstimateRejectsBadDate) {
   for (const auto* bad : {"", "2026", "2026/01/15", "15-01-2026", "2026-1-5"}) {
     ValueEstimate estimate;
-    estimate.amount_eur = 5.0;
+    estimate.amount = 5.0;
     estimate.estimated_at = bad;
     const auto result = coins::validate_value_estimate(estimate);
     ASSERT_FALSE(result.has_value()) << "expected rejection for '" << bad << "'";

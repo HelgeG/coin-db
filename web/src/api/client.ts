@@ -7,8 +7,10 @@ import type {
   Image,
   ImageKind,
   LookupKind,
+  LookupInput,
   LookupRef,
   ReferenceLink,
+  Settings,
   SummaryType,
   ValueEstimate,
 } from './types'
@@ -97,7 +99,7 @@ export const api = {
   },
   addEstimate(
     coinId: number,
-    input: { amount_eur: number; estimated_at?: string; source?: string | null },
+    input: { amount: number; estimated_at?: string; source?: string | null },
   ): Promise<ValueEstimate> {
     return request<ValueEstimate>('POST', `/coins/${coinId}/estimates`, input)
   },
@@ -139,5 +141,11 @@ export const api = {
   },
   createCurrencyUnit(currencyId: number, name: string, lang?: string): Promise<LookupRef> {
     return request<LookupRef>('POST', `/currencies/${currencyId}/units${langQuery(lang)}`, { name })
+  },
+  getSettings(lang?: string): Promise<Settings> {
+    return request<Settings>('GET', `/settings${langQuery(lang)}`)
+  },
+  updateSettings(baseCurrency: LookupInput, lang?: string): Promise<Settings> {
+    return request<Settings>('PUT', `/settings${langQuery(lang)}`, { base_currency: baseCurrency })
   },
 }

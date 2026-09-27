@@ -113,7 +113,7 @@ class SqliteCoinSearchTest : public ::testing::Test {
   void add_estimate(Id coin_id, double amount) {
     coins::ValueEstimate est;
     est.coin_id = coin_id;
-    est.amount_eur = amount;
+    est.amount = amount;
     est.estimated_at = "2026-01-01";
     EXPECT_TRUE(estimates_.add(est).has_value());
   }

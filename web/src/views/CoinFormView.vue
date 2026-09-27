@@ -5,11 +5,13 @@ import { useRouter } from 'vue-router'
 import { api, ApiError, type FieldError } from '../api/client'
 import type { CoinInput, LookupInput, LookupRef } from '../api/types'
 import LookupCombo from '../components/LookupCombo.vue'
+import { useBaseCurrency } from '../composables/useBaseCurrency'
 import { useI18n } from '../composables/useI18n'
 
 const props = defineProps<{ id?: string }>()
 const router = useRouter()
 const { t, locale } = useI18n()
+const { code: baseCurrencyCode, ensureLoaded } = useBaseCurrency()
 
 const isEdit = computed(() => props.id != null)
 const errors = ref<FieldError[]>([])
@@ -42,7 +44,7 @@ const f = reactive({
   grade_numeric: '',
   grade_label: '',
   acquired_date: '',
-  acquired_price_eur: '',
+  acquired_price: '',
   acquired_source: '',
   notes: '',
 })
@@ -92,7 +94,7 @@ function toInput(): CoinInput {
     grade_numeric: numOrNull(f.grade_numeric),
     grade_label: strOrNull(f.grade_label),
     acquired_date: strOrNull(f.acquired_date),
-    acquired_price_eur: numOrNull(f.acquired_price_eur),
+    acquired_price: numOrNull(f.acquired_price),
     acquired_source: strOrNull(f.acquired_source),
     notes: strOrNull(f.notes),
   }
@@ -130,7 +132,7 @@ async function loadForEdit(): Promise<void> {
     f.grade_numeric = coin.grade_numeric?.toString() ?? ''
     f.grade_label = coin.grade_label ?? ''
     f.acquired_date = coin.acquired_date ?? ''
-    f.acquired_price_eur = coin.acquired_price_eur?.toString() ?? ''
+    f.acquired_price = coin.acquired_price?.toString() ?? ''
     f.acquired_source = coin.acquired_source ?? ''
     f.notes = coin.notes ?? ''
     await loadUnits()
@@ -176,7 +178,10 @@ async function submit(): Promise<void> {
   }
 }
 
-onMounted(loadForEdit)
+onMounted(() => {
+  void ensureLoaded()
+  void loadForEdit()
+})
 </script>
 
 <template>
@@ -228,7 +233,7 @@ onMounted(loadForEdit)
       <div class="field"><label>{{ t('coin.gradeNumeric') }}</label><input v-model="f.grade_numeric" type="number" /></div>
       <div class="field"><label>{{ t('coin.gradeLabel') }}</label><input v-model="f.grade_label" placeholder="MS, 1+, VF …" /></div>
       <div class="field"><label>{{ t('coin.acquiredDate') }}</label><input v-model="f.acquired_date" type="date" /></div>
-      <div class="field"><label>{{ t('coin.acquiredPrice') }}</label><input v-model="f.acquired_price_eur" type="number" step="0.01" /></div>
+      <div class="field"><label>{{ t('coin.acquiredPrice', { currency: baseCurrencyCode }) }}</label><input v-model="f.acquired_price" type="number" step="0.01" /></div>
       <div class="field"><label>{{ t('coin.acquiredSource') }}</label><input v-model="f.acquired_source" /></div>
     </div>
     <div class="field"><label>{{ t('coin.notes') }}</label><textarea v-model="f.notes" rows="3"></textarea></div>

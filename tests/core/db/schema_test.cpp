@@ -47,12 +47,21 @@ coins::Id insert_coin(Database& db, int year_from, int year_to) {
   return db.last_insert_rowid();
 }
 
+// True if `table` has a column named `column`.
+bool has_column(Database& db, std::string_view table, std::string_view column) {
+  Statement stmt = db.prepare("SELECT count(*) FROM pragma_table_info(?) WHERE name = ?;");
+  stmt.bind(1, table);
+  stmt.bind(2, column);
+  EXPECT_TRUE(stmt.step());
+  return stmt.column_int64(0) > 0;
+}
+
 TEST(SchemaTest, BootstrapCreatesAllTablesAndIndexes) {
   Database db = Database::in_memory();
   coins::db::bootstrap_schema(db);
 
   for (const auto* table : {"coin", "value_estimate", "reference_link", "image", "lookup_entry",
-                            "lookup_name", "currency_unit", "currency_unit_name"}) {
+                            "lookup_name", "currency_unit", "currency_unit_name", "app_setting"}) {
     EXPECT_TRUE(has_object(db, "table", table)) << "missing table: " << table;
   }
   for (const auto* index :
@@ -68,7 +77,31 @@ TEST(SchemaTest, RecordsSchemaVersion) {
   Database db = Database::in_memory();
   coins::db::bootstrap_schema(db);
   EXPECT_EQ(coins::db::read_schema_version(db), coins::db::kSchemaVersion);
-  EXPECT_EQ(coins::db::kSchemaVersion, 2);
+  EXPECT_EQ(coins::db::kSchemaVersion, 3);
+}
+
+TEST(SchemaTest, MoneyColumnsUseBaseCurrencyNames) {
+  Database db = Database::in_memory();
+  coins::db::bootstrap_schema(db);
+  // v3 renamed the EUR-specific money columns to base-currency-neutral names.
+  EXPECT_TRUE(has_column(db, "value_estimate", "amount"));
+  EXPECT_FALSE(has_column(db, "value_estimate", "amount_eur"));
+  EXPECT_TRUE(has_column(db, "coin", "acquired_price"));
+  EXPECT_FALSE(has_column(db, "coin", "acquired_price_eur"));
+}
+
+TEST(SchemaTest, BootstrapSeedsBaseCurrencyToEur) {
+  Database db = Database::in_memory();
+  coins::db::bootstrap_schema(db);
+
+  Statement stmt = db.prepare("SELECT value FROM app_setting WHERE key = 'base_currency_id';");
+  ASSERT_TRUE(stmt.step());
+  const coins::Id base_id = stmt.column_int64(0);
+
+  Statement code = db.prepare("SELECT code FROM lookup_entry WHERE id = ? AND kind = 'currency';");
+  code.bind(1, base_id);
+  ASSERT_TRUE(code.step());
+  EXPECT_EQ(code.column_text(0), "EUR");
 }
 
 TEST(SchemaTest, BootstrapIsIdempotent) {
@@ -83,8 +116,8 @@ TEST(SchemaTest, DeletingCoinCascadesToChildren) {
   coins::db::bootstrap_schema(db);
   const coins::Id coin_id = insert_coin(db, 1889, 1889);
 
-  Statement est = db.prepare(
-      "INSERT INTO value_estimate (coin_id, amount_eur, estimated_at) VALUES (?, ?, ?);");
+  Statement est =
+      db.prepare("INSERT INTO value_estimate (coin_id, amount, estimated_at) VALUES (?, ?, ?);");
   est.bind(1, coin_id);
   est.bind(2, 100.0);
   est.bind(3, std::string_view{"2026-01-01"});
@@ -101,8 +134,8 @@ TEST(SchemaTest, ForeignKeyViolationIsRejected) {
   Database db = Database::in_memory();
   coins::db::bootstrap_schema(db);
 
-  Statement est = db.prepare(
-      "INSERT INTO value_estimate (coin_id, amount_eur, estimated_at) VALUES (?, ?, ?);");
+  Statement est =
+      db.prepare("INSERT INTO value_estimate (coin_id, amount, estimated_at) VALUES (?, ?, ?);");
   est.bind(1, coins::Id{999});  // no such coin
   est.bind(2, 100.0);
   est.bind(3, std::string_view{"2026-01-01"});

@@ -84,12 +84,12 @@ class CollectionIoTest : public ::testing::Test {
 
     coins::ValueEstimate e1;
     e1.coin_id = a_id;
-    e1.amount_eur = 50.0;
+    e1.amount = 50.0;
     e1.estimated_at = "2026-01-01";
     EXPECT_TRUE(estimates.add(e1).has_value());
     coins::ValueEstimate e2;
     e2.coin_id = a_id;
-    e2.amount_eur = 100.0;
+    e2.amount = 100.0;
     e2.estimated_at = "2026-02-01";
     EXPECT_TRUE(estimates.add(e2).has_value());
 
