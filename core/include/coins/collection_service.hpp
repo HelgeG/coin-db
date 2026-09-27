@@ -74,7 +74,7 @@ class CollectionService {
   [[nodiscard]] std::filesystem::path resolve_image(std::string_view stored_path) const;
 
   // --- Summary & import/export -------------------------------------------
-  [[nodiscard]] CollectionSummary summary();
+  [[nodiscard]] CollectionSummary summary(SummaryType type = kDefaultSummaryType);
   [[nodiscard]] std::string export_json();
   [[nodiscard]] std::expected<ImportStats, ValidationErrors> import_json(
       std::string_view json_text);

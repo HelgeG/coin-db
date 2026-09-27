@@ -118,6 +118,21 @@ TEST_F(CliAppTest, EstimateThenSummary) {
   EXPECT_NE(summary.out.find("100.00 EUR"), std::string::npos);
   EXPECT_NE(summary.out.find("Coins by country:"), std::string::npos);
   EXPECT_NE(summary.out.find("Norway: 1"), std::string::npos);
+
+  // A selected breakdown type changes the grouping heading.
+  const CliResult by_decade = run({"summary", "--type", "by_decade"});
+  EXPECT_EQ(by_decade.code, 0);
+  EXPECT_NE(by_decade.out.find("Coins by decade:"), std::string::npos);
+  EXPECT_NE(by_decade.out.find("1960s: 1"), std::string::npos);
+
+  // total_value prints the headline only, no breakdown heading.
+  const CliResult total = run({"summary", "--type", "total_value"});
+  EXPECT_EQ(total.code, 0);
+  EXPECT_NE(total.out.find("100.00 EUR"), std::string::npos);
+  EXPECT_EQ(total.out.find("Coins by"), std::string::npos);
+
+  // An invalid type is rejected by the option validator.
+  EXPECT_NE(run({"summary", "--type", "bogus"}).code, 0);
 }
 
 TEST_F(CliAppTest, ExportThenImportIntoFreshCollection) {
