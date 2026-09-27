@@ -9,7 +9,12 @@ namespace coins::db {
 
 /// Current schema version, recorded in SQLite's `PRAGMA user_version`. Bump this
 /// when the schema changes and add a migration step in `bootstrap_schema`.
-inline constexpr int kSchemaVersion = 1;
+///
+/// v2 introduced the localized controlled-vocabulary tables (`lookup_entry`,
+/// `lookup_name`, `currency_unit`, `currency_unit_name`) and moved the coin's
+/// encoded fields to `*_id` foreign keys. Because there was no production data,
+/// v2 is a clean redefinition rather than a data-preserving migration.
+inline constexpr int kSchemaVersion = 2;
 
 /// The DDL that defines the coins-db schema (tables + indexes). Idempotent:
 /// every statement uses IF NOT EXISTS.

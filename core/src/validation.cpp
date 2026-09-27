@@ -14,16 +14,6 @@ bool is_blank(std::string_view text) {
                      [](unsigned char ch) { return std::isspace(ch) != 0; });
 }
 
-// A well-formed ISO 4217 code is exactly three uppercase ASCII letters. This
-// checks the shape, not membership of the official code list.
-bool is_iso4217_shape(std::string_view code) {
-  if (code.size() != 3) {
-    return false;
-  }
-  return std::all_of(code.begin(), code.end(),
-                     [](unsigned char ch) { return ch >= 'A' && ch <= 'Z'; });
-}
-
 void require_non_negative(ValidationErrors& errors, const std::optional<double>& value,
                           std::string field) {
   if (value.has_value() && *value < 0.0) {
@@ -56,7 +46,7 @@ bool is_iso_date(std::string_view text) {
 ValidationResult validate_coin(const Coin& coin) {
   ValidationErrors errors;
 
-  if (coin.country.empty() || is_blank(coin.country)) {
+  if (coin.country_id <= 0) {
     errors.push_back({"country", "is required"});
   }
 
@@ -65,10 +55,6 @@ ValidationResult validate_coin(const Coin& coin) {
   }
   if (coin.year_to < coin.year_from) {
     errors.push_back({"year_to", "must be greater than or equal to year_from"});
-  }
-
-  if (coin.coin_currency.has_value() && !is_iso4217_shape(*coin.coin_currency)) {
-    errors.push_back({"coin_currency", "must be a 3-letter uppercase ISO 4217 code"});
   }
 
   require_non_negative(errors, coin.face_value, "face_value");

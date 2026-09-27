@@ -3,6 +3,8 @@ add_library(coins_core
   src/version.cpp
   src/image.cpp
   src/grade.cpp
+  src/lookup_entry.cpp
+  src/lookup_service.cpp
   src/validation.cpp
   src/clock.cpp
   src/fs_image_store.cpp
@@ -14,6 +16,8 @@ add_library(coins_core
   src/db/database.cpp
   src/db/statement.cpp
   src/db/schema.cpp
+  src/db/seed.cpp
+  src/db/sqlite_lookup_repository.cpp
   src/db/sqlite_coin_repository.cpp
   src/db/sqlite_reference_link_repository.cpp
   src/db/sqlite_value_estimate_repository.cpp)

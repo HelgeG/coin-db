@@ -40,8 +40,10 @@ struct ImportStats {
                                                                        std::string_view json_text);
 
 /// Exports a flattened, one-row-per-coin CSV: the coin's columns plus its latest
-/// EUR estimate (amount and date), suitable for spreadsheets.
-[[nodiscard]] std::string export_csv(db::Database& db);
+/// EUR estimate (amount and date), suitable for spreadsheets. Encoded fields
+/// (country, denomination, composition, mint, currency, unit) are rendered as
+/// their localized display name in `lang` (no codes).
+[[nodiscard]] std::string export_csv(db::Database& db, std::string_view lang = "en");
 
 }  // namespace coins
 

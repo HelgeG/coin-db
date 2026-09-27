@@ -11,6 +11,7 @@
 
 #include "coins/coin.hpp"
 #include "coins/db/database.hpp"
+#include "coins/db/sqlite_lookup_repository.hpp"
 #include "coins/db/statement.hpp"
 #include "coins/image.hpp"
 #include "coins/json.hpp"
@@ -24,38 +25,39 @@ using json = nlohmann::json;
 using db::Statement;
 
 constexpr std::string_view kCoinColumns =
-    "id, country, denomination, face_value, coin_currency, year_from, year_to, "
-    "mint, mint_mark, composition, weight_g, diameter_mm, grade_scale, grade_numeric, "
-    "grade_label, acquired_date, acquired_price_eur, acquired_source, notes, created_at, "
-    "updated_at";
+    "id, country_id, denomination_id, face_value, currency_id, face_unit_id, year_from, "
+    "year_to, mint_id, mint_mark, composition_id, weight_g, diameter_mm, grade_scale, "
+    "grade_numeric, grade_label, acquired_date, acquired_price_eur, acquired_source, notes, "
+    "created_at, updated_at";
 
 // --- Row readers ----------------------------------------------------------
 
 Coin map_coin(Statement& stmt) {
   Coin coin;
   coin.id = stmt.column_int64(0);
-  coin.country = stmt.column_text(1);
-  coin.denomination = stmt.column_opt_text(2);
+  coin.country_id = stmt.column_int64(1);
+  if (const auto v = stmt.column_opt_int64(2)) coin.denomination_id = *v;
   coin.face_value = stmt.column_opt_double(3);
-  coin.coin_currency = stmt.column_opt_text(4);
-  coin.year_from = static_cast<int>(stmt.column_int64(5));
-  coin.year_to = static_cast<int>(stmt.column_int64(6));
-  coin.mint = stmt.column_opt_text(7);
-  coin.mint_mark = stmt.column_opt_text(8);
-  coin.composition = stmt.column_opt_text(9);
-  coin.weight_g = stmt.column_opt_double(10);
-  coin.diameter_mm = stmt.column_opt_double(11);
-  coin.grade_scale = stmt.column_opt_text(12);
-  if (const std::optional<std::int64_t> grade = stmt.column_opt_int64(13); grade.has_value()) {
+  if (const auto v = stmt.column_opt_int64(4)) coin.currency_id = *v;
+  if (const auto v = stmt.column_opt_int64(5)) coin.face_unit_id = *v;
+  coin.year_from = static_cast<int>(stmt.column_int64(6));
+  coin.year_to = static_cast<int>(stmt.column_int64(7));
+  if (const auto v = stmt.column_opt_int64(8)) coin.mint_id = *v;
+  coin.mint_mark = stmt.column_opt_text(9);
+  if (const auto v = stmt.column_opt_int64(10)) coin.composition_id = *v;
+  coin.weight_g = stmt.column_opt_double(11);
+  coin.diameter_mm = stmt.column_opt_double(12);
+  coin.grade_scale = stmt.column_opt_text(13);
+  if (const std::optional<std::int64_t> grade = stmt.column_opt_int64(14); grade.has_value()) {
     coin.grade_numeric = static_cast<int>(*grade);
   }
-  coin.grade_label = stmt.column_opt_text(14);
-  coin.acquired_date = stmt.column_opt_text(15);
-  coin.acquired_price_eur = stmt.column_opt_double(16);
-  coin.acquired_source = stmt.column_opt_text(17);
-  coin.notes = stmt.column_opt_text(18);
-  coin.created_at = stmt.column_text(19);
-  coin.updated_at = stmt.column_text(20);
+  coin.grade_label = stmt.column_opt_text(15);
+  coin.acquired_date = stmt.column_opt_text(16);
+  coin.acquired_price_eur = stmt.column_opt_double(17);
+  coin.acquired_source = stmt.column_opt_text(18);
+  coin.notes = stmt.column_opt_text(19);
+  coin.created_at = stmt.column_text(20);
+  coin.updated_at = stmt.column_text(21);
   return coin;
 }
 
@@ -127,22 +129,23 @@ std::vector<Image> read_images(db::Database& db, Id coin_id) {
 
 void insert_coin(db::Database& db, const Coin& coin) {
   Statement stmt = db.prepare(
-      "INSERT INTO coin (id, country, denomination, face_value, coin_currency, year_from, "
-      "year_to, mint, mint_mark, composition, weight_g, diameter_mm, grade_scale, "
-      "grade_numeric, grade_label, acquired_date, acquired_price_eur, acquired_source, notes, "
-      "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-      "?, ?);");
+      "INSERT INTO coin (id, country_id, denomination_id, face_value, currency_id, "
+      "face_unit_id, year_from, year_to, mint_id, mint_mark, composition_id, weight_g, "
+      "diameter_mm, grade_scale, grade_numeric, grade_label, acquired_date, acquired_price_eur, "
+      "acquired_source, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+      "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
   int i = 1;
   stmt.bind(i++, coin.id);
-  stmt.bind(i++, std::string_view{coin.country});
-  stmt.bind(i++, coin.denomination);
+  stmt.bind(i++, coin.country_id);
+  stmt.bind(i++, coin.denomination_id);
   stmt.bind(i++, coin.face_value);
-  stmt.bind(i++, coin.coin_currency);
+  stmt.bind(i++, coin.currency_id);
+  stmt.bind(i++, coin.face_unit_id);
   stmt.bind(i++, coin.year_from);
   stmt.bind(i++, coin.year_to);
-  stmt.bind(i++, coin.mint);
+  stmt.bind(i++, coin.mint_id);
   stmt.bind(i++, coin.mint_mark);
-  stmt.bind(i++, coin.composition);
+  stmt.bind(i++, coin.composition_id);
   stmt.bind(i++, coin.weight_g);
   stmt.bind(i++, coin.diameter_mm);
   stmt.bind(i++, coin.grade_scale);
@@ -373,9 +376,23 @@ std::expected<ImportStats, ValidationErrors> import_json(db::Database& db,
   }
 }
 
-std::string export_csv(db::Database& db) {
+std::string export_csv(db::Database& db, std::string_view lang) {
+  db::SqliteLookupRepository lookups{db};
+
+  // Resolves a lookup id to its localized display name (empty when unset).
+  auto name_of = [&](const std::optional<Id>& id) -> std::string {
+    if (!id.has_value()) return {};
+    if (auto entry = lookups.find_by_id(*id)) return entry->display_name(lang);
+    return {};
+  };
+  auto unit_name_of = [&](const std::optional<Id>& id) -> std::string {
+    if (!id.has_value()) return {};
+    if (auto unit = lookups.find_unit_by_id(*id)) return unit->display_name(lang);
+    return {};
+  };
+
   std::string out =
-      "id,country,denomination,face_value,coin_currency,year_from,year_to,mint,mint_mark,"
+      "id,country,denomination,face_value,face_unit,currency,year_from,year_to,mint,mint_mark,"
       "composition,weight_g,diameter_mm,grade_scale,grade_numeric,grade_label,acquired_date,"
       "acquired_price_eur,acquired_source,notes,created_at,updated_at,latest_estimate_eur,"
       "latest_estimate_at\n";
@@ -388,19 +405,20 @@ std::string export_csv(db::Database& db) {
 
   while (stmt.step()) {
     const Coin coin = map_coin(stmt);
-    const std::optional<double> latest_amount = stmt.column_opt_double(21);
-    const std::optional<std::string> latest_at = stmt.column_opt_text(22);
+    const std::optional<double> latest_amount = stmt.column_opt_double(22);
+    const std::optional<std::string> latest_at = stmt.column_opt_text(23);
 
     const std::string fields[] = {std::to_string(coin.id),
-                                  csv_escape(coin.country),
-                                  csv_opt_string(coin.denomination),
+                                  csv_escape(name_of(coin.country_id)),
+                                  csv_escape(name_of(coin.denomination_id)),
                                   csv_opt_double(coin.face_value),
-                                  csv_opt_string(coin.coin_currency),
+                                  csv_escape(unit_name_of(coin.face_unit_id)),
+                                  csv_escape(name_of(coin.currency_id)),
                                   std::to_string(coin.year_from),
                                   std::to_string(coin.year_to),
-                                  csv_opt_string(coin.mint),
+                                  csv_escape(name_of(coin.mint_id)),
                                   csv_opt_string(coin.mint_mark),
-                                  csv_opt_string(coin.composition),
+                                  csv_escape(name_of(coin.composition_id)),
                                   csv_opt_double(coin.weight_g),
                                   csv_opt_double(coin.diameter_mm),
                                   csv_opt_string(coin.grade_scale),

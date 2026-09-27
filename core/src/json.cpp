@@ -17,6 +17,9 @@ json opt_to_json(const std::optional<double>& value) {
 json opt_to_json(const std::optional<int>& value) {
   return value.has_value() ? json(*value) : json(nullptr);
 }
+json opt_to_json(const std::optional<Id>& value) {
+  return value.has_value() ? json(*value) : json(nullptr);
+}
 
 std::optional<std::string> opt_string(const json& obj, const char* key) {
   if (!obj.contains(key) || obj.at(key).is_null()) {
@@ -36,6 +39,12 @@ std::optional<int> opt_int(const json& obj, const char* key) {
   }
   return obj.at(key).get<int>();
 }
+std::optional<Id> opt_id(const json& obj, const char* key) {
+  if (!obj.contains(key) || obj.at(key).is_null()) {
+    return std::nullopt;
+  }
+  return obj.at(key).get<Id>();
+}
 std::string req_string(const json& obj, const char* key) {
   return opt_string(obj, key).value_or(std::string{});
 }
@@ -52,15 +61,16 @@ Id req_id(const json& obj, const char* key) {
 
 json coin_to_json(const Coin& coin) {
   return json{{"id", coin.id},
-              {"country", coin.country},
-              {"denomination", opt_to_json(coin.denomination)},
+              {"country_id", coin.country_id},
+              {"denomination_id", opt_to_json(coin.denomination_id)},
               {"face_value", opt_to_json(coin.face_value)},
-              {"coin_currency", opt_to_json(coin.coin_currency)},
+              {"currency_id", opt_to_json(coin.currency_id)},
+              {"face_unit_id", opt_to_json(coin.face_unit_id)},
               {"year_from", coin.year_from},
               {"year_to", coin.year_to},
-              {"mint", opt_to_json(coin.mint)},
+              {"mint_id", opt_to_json(coin.mint_id)},
               {"mint_mark", opt_to_json(coin.mint_mark)},
-              {"composition", opt_to_json(coin.composition)},
+              {"composition_id", opt_to_json(coin.composition_id)},
               {"weight_g", opt_to_json(coin.weight_g)},
               {"diameter_mm", opt_to_json(coin.diameter_mm)},
               {"grade_scale", opt_to_json(coin.grade_scale)},
@@ -100,15 +110,16 @@ json image_to_json(const Image& image) {
 Coin coin_from_json(const json& obj) {
   Coin coin;
   coin.id = req_id(obj, "id");
-  coin.country = req_string(obj, "country");
-  coin.denomination = opt_string(obj, "denomination");
+  coin.country_id = req_id(obj, "country_id");
+  coin.denomination_id = opt_id(obj, "denomination_id");
   coin.face_value = opt_double(obj, "face_value");
-  coin.coin_currency = opt_string(obj, "coin_currency");
+  coin.currency_id = opt_id(obj, "currency_id");
+  coin.face_unit_id = opt_id(obj, "face_unit_id");
   coin.year_from = req_int(obj, "year_from");
   coin.year_to = req_int(obj, "year_to");
-  coin.mint = opt_string(obj, "mint");
+  coin.mint_id = opt_id(obj, "mint_id");
   coin.mint_mark = opt_string(obj, "mint_mark");
-  coin.composition = opt_string(obj, "composition");
+  coin.composition_id = opt_id(obj, "composition_id");
   coin.weight_g = opt_double(obj, "weight_g");
   coin.diameter_mm = opt_double(obj, "diameter_mm");
   coin.grade_scale = opt_string(obj, "grade_scale");
