@@ -214,7 +214,7 @@ json coin_response_json(CollectionService& service, const Coin& coin, std::strin
       {"grade_numeric", opt_json(coin.grade_numeric)},
       {"grade_label", opt_json(coin.grade_label)},
       {"acquired_date", opt_json(coin.acquired_date)},
-      {"acquired_price_eur", opt_json(coin.acquired_price_eur)},
+      {"acquired_price", opt_json(coin.acquired_price)},
       {"acquired_source", opt_json(coin.acquired_source)},
       {"notes", opt_json(coin.notes)},
       {"created_at", coin.created_at},
@@ -314,7 +314,7 @@ Coin coin_from_request(CollectionService& service, const json& body, std::string
   coin.grade_numeric = read_opt<int>(body, "grade_numeric");
   coin.grade_label = read_opt<std::string>(body, "grade_label");
   coin.acquired_date = read_opt<std::string>(body, "acquired_date");
-  coin.acquired_price_eur = read_opt<double>(body, "acquired_price_eur");
+  coin.acquired_price = read_opt<double>(body, "acquired_price");
   coin.acquired_source = read_opt<std::string>(body, "acquired_source");
   coin.notes = read_opt<std::string>(body, "notes");
   return coin;
@@ -328,6 +328,17 @@ json lookup_entry_json(const LookupEntry& entry, std::string_view lang) {
 // {"id","code","name"} for a currency unit, localized.
 json currency_unit_json(const CurrencyUnit& unit, std::string_view lang) {
   return json{{"id", unit.id}, {"code", unit.code}, {"name", unit.display_name(lang)}};
+}
+
+// Collection settings body: the base currency as {"id","code","name"} (localized),
+// or null when unset.
+json settings_json(CollectionService& service, std::string_view lang) {
+  const auto base = service.base_currency();
+  json base_json = nullptr;
+  if (base) {
+    base_json = json{{"id", base->id}, {"code", base->code}, {"name", base->display_name(lang)}};
+  }
+  return json{{"base_currency", base_json}};
 }
 
 }  // namespace
@@ -565,6 +576,40 @@ void register_routes(httplib::Server& server, CollectionService& service) {
       }
     }
     respond(res, 200, summary_to_json(service.summary(type)));
+  });
+
+  // Read collection settings (the base currency, localized).
+  server.Get("/settings", [&service](const Request& req, Response& res) {
+    respond(res, 200, settings_json(service, lang_of(req)));
+  });
+
+  // Update collection settings. Accepts { "base_currency": <id|code|name> } where
+  // the value may be a number (id), a string (code/name), or an object with an
+  // "id"/"code"/"name" field. Strings/objects are resolved against the currency
+  // vocabulary; the resolved entry must be a currency.
+  server.Put("/settings", [&service](const Request& req, Response& res) {
+    const auto body = parse_body(req, res);
+    if (!body) return;
+    const std::string lang = lang_of(req);
+    if (!body->contains("base_currency") || body->at("base_currency").is_null()) {
+      respond_error(res, 400, "expected a 'base_currency' value");
+      return;
+    }
+    const json& value = body->at("base_currency");
+    std::optional<Id> id;
+    const std::optional<std::string> text = encoded_text(value, id);
+    if (!id) {
+      if (!text || text->empty()) {
+        respond_error(res, 400, "expected a base_currency id, code, or name");
+        return;
+      }
+      id = service.resolve_lookup(LookupKind::Currency, lang, *text).id;
+    }
+    if (!service.set_base_currency(*id)) {
+      respond_error(res, 422, "base_currency is not a currency entry");
+      return;
+    }
+    respond(res, 200, settings_json(service, lang));
   });
 
   // List a vocabulary's entries, localized. :kind is one of the five lookup

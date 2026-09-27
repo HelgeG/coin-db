@@ -147,7 +147,7 @@ TEST_F(CliAppTest, DeleteYesFlagSkipsPrompt) {
 
 TEST_F(CliAppTest, EstimateThenSummary) {
   ASSERT_EQ(run({"add", "--country", "Norway", "--year", "1963"}).code, 0);
-  ASSERT_EQ(run({"estimate", "1", "--eur", "100", "--date", "2026-01-01"}).code, 0);
+  ASSERT_EQ(run({"estimate", "1", "--amount", "100", "--date", "2026-01-01"}).code, 0);
 
   const CliResult summary = run({"summary"});
   EXPECT_EQ(summary.code, 0);
@@ -170,6 +170,37 @@ TEST_F(CliAppTest, EstimateThenSummary) {
 
   // An invalid type is rejected by the option validator.
   EXPECT_NE(run({"summary", "--type", "bogus"}).code, 0);
+}
+
+TEST_F(CliAppTest, BaseCurrencyDefaultsToEur) {
+  const CliResult current = run({"base-currency"});
+  EXPECT_EQ(current.code, 0);
+  // Default base currency is EUR: prints "CODE<TAB>Name".
+  EXPECT_NE(current.out.find("EUR\t"), std::string::npos);
+}
+
+TEST_F(CliAppTest, BaseCurrencySetNokThenShow) {
+  const CliResult set = run({"base-currency", "set", "NOK"});
+  EXPECT_EQ(set.code, 0);
+  EXPECT_NE(set.out.find("NOK"), std::string::npos);
+
+  const CliResult current = run({"base-currency"});
+  EXPECT_EQ(current.code, 0);
+  EXPECT_NE(current.out.find("NOK\t"), std::string::npos);
+}
+
+TEST_F(CliAppTest, EstimateDisplaysConfiguredBaseCurrency) {
+  ASSERT_EQ(run({"add", "--country", "Norway", "--year", "1963"}).code, 0);
+  ASSERT_EQ(run({"base-currency", "set", "NOK"}).code, 0);
+  ASSERT_EQ(run({"estimate", "1", "--amount", "250", "--date", "2026-01-01"}).code, 0);
+
+  const CliResult shown = run({"show", "1"});
+  EXPECT_EQ(shown.code, 0);
+  EXPECT_NE(shown.out.find("Latest estimate: 250.00 NOK"), std::string::npos);
+
+  const CliResult summary = run({"summary"});
+  EXPECT_EQ(summary.code, 0);
+  EXPECT_NE(summary.out.find("250.00 NOK"), std::string::npos);
 }
 
 TEST_F(CliAppTest, ExportThenImportIntoFreshCollection) {

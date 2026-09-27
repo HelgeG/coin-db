@@ -41,6 +41,9 @@ export const settings = {
     'settings.accentHelp': 'The highlight color used for buttons and links.',
     'settings.language': 'Language',
     'settings.languageHelp': 'Choose the language used across the interface.',
+    'settings.baseCurrency': 'Base currency',
+    'settings.baseCurrencyHelp':
+      'The currency that value estimates and acquisition prices are shown in. No conversion is performed — amounts are shown exactly as entered.',
   },
   nb: {
     'settings.title': 'Innstillinger',
@@ -53,5 +56,8 @@ export const settings = {
     'settings.accentHelp': 'Uthevingsfargen som brukes på knapper og lenker.',
     'settings.language': 'Språk',
     'settings.languageHelp': 'Velg språket som brukes i grensesnittet.',
+    'settings.baseCurrency': 'Basisvaluta',
+    'settings.baseCurrencyHelp':
+      'Valutaen som verdiestimater og anskaffelsespriser vises i. Ingen omregning utføres — beløp vises nøyaktig slik de ble lagt inn.',
   },
 } satisfies AreaBundle

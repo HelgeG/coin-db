@@ -8,12 +8,14 @@
 namespace coins::db {
 namespace {
 
-// Schema DDL (version 2). Mirrors design.md's data model. Notes:
+// Schema DDL (version 3). Mirrors design.md's data model. Notes:
 //  - `id INTEGER PRIMARY KEY` aliases SQLite's rowid (auto-incrementing).
 //  - Child tables cascade on parent deletion; foreign keys are enforced because
 //    the connection sets `PRAGMA foreign_keys = ON`.
 //  - Encoded coin fields (country, denomination, mint, composition, currency)
 //    reference `lookup_entry`; the face value's unit references `currency_unit`.
+//  - Value estimates and acquisition price are in the collection base currency
+//    (see `app_setting.base_currency_id`); no conversion is performed.
 //  - The coin table enforces the year-range invariant with a CHECK.
 constexpr std::string_view kSchemaSql = R"sql(
 CREATE TABLE IF NOT EXISTS lookup_entry (
@@ -66,7 +68,7 @@ CREATE TABLE IF NOT EXISTS coin (
   grade_numeric      INTEGER,
   grade_label        TEXT,
   acquired_date      TEXT,
-  acquired_price_eur REAL,
+  acquired_price     REAL,
   acquired_source    TEXT,
   notes              TEXT,
   created_at         TEXT NOT NULL,
@@ -74,10 +76,15 @@ CREATE TABLE IF NOT EXISTS coin (
   CHECK (year_from <= year_to)
 );
 
+CREATE TABLE IF NOT EXISTS app_setting (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);
+
 CREATE TABLE IF NOT EXISTS value_estimate (
   id           INTEGER PRIMARY KEY,
   coin_id      INTEGER NOT NULL REFERENCES coin(id) ON DELETE CASCADE,
-  amount_eur   REAL    NOT NULL,
+  amount       REAL    NOT NULL,
   estimated_at TEXT    NOT NULL,
   source       TEXT
 );
@@ -123,6 +130,8 @@ void bootstrap_schema(Database& db) {
     // Seed the controlled vocabularies (idempotent, keyed by code) inside the
     // same transaction so a fresh DB comes up fully populated.
     seed_lookups(db);
+    // Default the collection base currency to EUR if not already set.
+    seed_base_currency(db);
     // PRAGMA does not accept bound parameters, and kSchemaVersion is a trusted
     // compile-time constant, so formatting it into the statement is safe.
     db.execute("PRAGMA user_version = " + std::to_string(kSchemaVersion) + ";");

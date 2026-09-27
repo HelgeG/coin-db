@@ -80,6 +80,22 @@ export function useI18n() {
     },
     eur: (value: number) =>
       new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'EUR' }).format(value),
+    /**
+     * Format a monetary amount in the given ISO 4217 currency code. When the
+     * code is empty/unknown, falls back to a plain localized number so the app
+     * still works before the base currency has loaded.
+     */
+    money: (value: number, currency?: string) => {
+      if (currency) {
+        try {
+          return new Intl.NumberFormat(locale.value, { style: 'currency', currency }).format(value)
+        } catch {
+          // Unknown/app-generated code: fall through to number + code.
+        }
+        return `${new Intl.NumberFormat(locale.value).format(value)} ${currency}`
+      }
+      return new Intl.NumberFormat(locale.value).format(value)
+    },
     setLocale,
   }
 }

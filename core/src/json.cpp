@@ -77,7 +77,7 @@ json coin_to_json(const Coin& coin) {
               {"grade_numeric", opt_to_json(coin.grade_numeric)},
               {"grade_label", opt_to_json(coin.grade_label)},
               {"acquired_date", opt_to_json(coin.acquired_date)},
-              {"acquired_price_eur", opt_to_json(coin.acquired_price_eur)},
+              {"acquired_price", opt_to_json(coin.acquired_price)},
               {"acquired_source", opt_to_json(coin.acquired_source)},
               {"notes", opt_to_json(coin.notes)},
               {"created_at", coin.created_at},
@@ -87,7 +87,7 @@ json coin_to_json(const Coin& coin) {
 json value_estimate_to_json(const ValueEstimate& estimate) {
   return json{{"id", estimate.id},
               {"coin_id", estimate.coin_id},
-              {"amount_eur", estimate.amount_eur},
+              {"amount", estimate.amount},
               {"estimated_at", estimate.estimated_at},
               {"source", opt_to_json(estimate.source)}};
 }
@@ -126,7 +126,7 @@ Coin coin_from_json(const json& obj) {
   coin.grade_numeric = opt_int(obj, "grade_numeric");
   coin.grade_label = opt_string(obj, "grade_label");
   coin.acquired_date = opt_string(obj, "acquired_date");
-  coin.acquired_price_eur = opt_double(obj, "acquired_price_eur");
+  coin.acquired_price = opt_double(obj, "acquired_price");
   coin.acquired_source = opt_string(obj, "acquired_source");
   coin.notes = opt_string(obj, "notes");
   coin.created_at = req_string(obj, "created_at");
@@ -138,7 +138,7 @@ ValueEstimate value_estimate_from_json(const json& obj) {
   ValueEstimate estimate;
   estimate.id = req_id(obj, "id");
   estimate.coin_id = req_id(obj, "coin_id");
-  estimate.amount_eur = req_double(obj, "amount_eur");
+  estimate.amount = req_double(obj, "amount");
   estimate.estimated_at = req_string(obj, "estimated_at");
   estimate.source = opt_string(obj, "source");
   return estimate;

@@ -32,6 +32,11 @@ export interface LookupRef {
  */
 export type LookupInput = { id: number } | { code: string } | { name: string } | null
 
+/** Collection-wide settings (from GET /settings). */
+export interface Settings {
+  base_currency: LookupRef
+}
+
 export interface Coin {
   id: number
   country: LookupRef
@@ -50,7 +55,7 @@ export interface Coin {
   grade_numeric: number | null
   grade_label: string | null
   acquired_date: string | null
-  acquired_price_eur: number | null
+  acquired_price: number | null
   acquired_source: string | null
   notes: string | null
   created_at: string
@@ -60,7 +65,7 @@ export interface Coin {
 export interface ValueEstimate {
   id: number
   coin_id: number
-  amount_eur: number
+  amount: number
   estimated_at: string
   source: string | null
 }
@@ -133,7 +138,7 @@ export interface CoinInput {
   grade_numeric?: number | null
   grade_label?: string | null
   acquired_date?: string | null
-  acquired_price_eur?: number | null
+  acquired_price?: number | null
   acquired_source?: string | null
   notes?: string | null
 }

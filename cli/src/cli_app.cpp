@@ -48,7 +48,7 @@ struct CoinFieldOptions {
   std::optional<int> grade_numeric;
   std::optional<std::string> grade_label;
   std::optional<std::string> acquired_date;
-  std::optional<double> acquired_price_eur;
+  std::optional<double> acquired_price;
   std::optional<std::string> acquired_source;
   std::optional<std::string> notes;
 };
@@ -71,7 +71,7 @@ void add_coin_options(CLI::App* sub, CoinFieldOptions& o) {
   sub->add_option("--grade-numeric", o.grade_numeric, "Numeric grade (e.g. Sheldon 65)");
   sub->add_option("--grade-label", o.grade_label, "Symbolic grade (e.g. MS, 1+)");
   sub->add_option("--acquired-date", o.acquired_date, "ISO 8601 date");
-  sub->add_option("--acquired-price-eur", o.acquired_price_eur, "Price paid, in EUR");
+  sub->add_option("--acquired-price", o.acquired_price, "Price paid, in the base currency");
   sub->add_option("--acquired-source", o.acquired_source);
   sub->add_option("--notes", o.notes);
 }
@@ -115,7 +115,7 @@ void apply_options(const CoinFieldOptions& o, CollectionService& service, std::s
   if (o.grade_numeric) coin.grade_numeric = o.grade_numeric;
   if (o.grade_label) coin.grade_label = o.grade_label;
   if (o.acquired_date) coin.acquired_date = o.acquired_date;
-  if (o.acquired_price_eur) coin.acquired_price_eur = o.acquired_price_eur;
+  if (o.acquired_price) coin.acquired_price = o.acquired_price;
   if (o.acquired_source) coin.acquired_source = o.acquired_source;
   if (o.notes) coin.notes = o.notes;
 }
@@ -168,6 +168,12 @@ std::string face_value_text(CollectionService& service, const Coin& coin, std::s
     if (!cur.empty()) return number + " " + cur;
   }
   return number;
+}
+
+// Returns the collection base-currency code (e.g. "EUR"), or "" when unset.
+std::string base_currency_code(CollectionService& service) {
+  const auto entry = service.base_currency();
+  return entry ? entry->code : "";
 }
 
 void print_opt(std::ostream& out, std::string_view label, const std::optional<std::string>& v) {
@@ -245,15 +251,17 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     query.sort_field = sort_field_from(sort_name);
     query.sort_direction = descending ? SortDirection::Descending : SortDirection::Ascending;
     query.lang = lang;
+    const std::string base_code = base_currency_code(service);
     const std::vector<Coin> coins = service.search(query);
+    const std::string value_header = base_code.empty() ? "Latest" : ("Latest " + base_code);
     out << std::format("{:>5}  {:<16} {:<10} {:<16} {:>12}\n", "ID", "Country", "Year",
-                       "Denomination", "Latest EUR");
+                       "Denomination", value_header);
     for (const Coin& coin : coins) {
       const auto latest = service.latest_estimate(coin.id);
-      const std::string eur = latest ? std::format("{:.2f}", latest->amount_eur) : "-";
+      const std::string amount = latest ? std::format("{:.2f}", latest->amount) : "-";
       out << std::format("{:>5}  {:<16} {:<10} {:<16} {:>12}\n", coin.id,
                          country_name(service, coin, lang), year_text(coin),
-                         lookup_name(service, coin.denomination_id, lang), eur);
+                         lookup_name(service, coin.denomination_id, lang), amount);
     }
     out << coins.size() << " coin(s)\n";
   });
@@ -270,6 +278,7 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
       result = 1;
       return;
     }
+    const std::string base_code = base_currency_code(service);
     out << "Coin " << coin->id << "\n";
     out << "  Country: " << country_name(service, *coin, lang) << "\n";
     out << "  Year: " << year_text(*coin) << "\n";
@@ -285,13 +294,15 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     print_opt(out, "Grade numeric", coin->grade_numeric);
     print_opt(out, "Grade label", coin->grade_label);
     print_opt(out, "Acquired date", coin->acquired_date);
-    print_opt(out, "Acquired price (EUR)", coin->acquired_price_eur);
+    if (coin->acquired_price) {
+      out << std::format("  Acquired price: {:.2f} {}\n", *coin->acquired_price, base_code);
+    }
     print_opt(out, "Acquired source", coin->acquired_source);
     print_opt(out, "Notes", coin->notes);
 
     const auto latest = service.latest_estimate(coin->id);
     if (latest) {
-      out << std::format("  Latest estimate: {:.2f} EUR ({})\n", latest->amount_eur,
+      out << std::format("  Latest estimate: {:.2f} {} ({})\n", latest->amount, base_code,
                          latest->estimated_at);
     }
     out << "  Estimate history: " << service.estimate_history(coin->id).size() << " entr(ies)\n";
@@ -356,20 +367,21 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
   });
 
   // --- estimate -----------------------------------------------------------
-  auto* estimate = app.add_subcommand("estimate", "Add a EUR value estimate to a coin");
+  auto* estimate = app.add_subcommand("estimate", "Add a value estimate to a coin");
   Id estimate_id = 0;
-  double estimate_eur = 0.0;
+  double estimate_amount = 0.0;
   std::optional<std::string> estimate_date;
   std::optional<std::string> estimate_source;
   estimate->add_option("id", estimate_id, "Coin id")->required();
-  estimate->add_option("--eur", estimate_eur, "Estimated value in EUR")->required();
+  estimate->add_option("--amount", estimate_amount, "Estimated value in the base currency")
+      ->required();
   estimate->add_option("--date", estimate_date, "ISO 8601 date (defaults to today)");
   estimate->add_option("--source", estimate_source, "How the estimate was derived");
   estimate->callback([&] {
     auto service = CollectionService::from_data_dir(data_dir);
     ValueEstimate est;
     est.coin_id = estimate_id;
-    est.amount_eur = estimate_eur;
+    est.amount = estimate_amount;
     est.estimated_at = estimate_date.value_or(service.today());
     est.source = estimate_source;
     const auto added = service.add_estimate(est);
@@ -492,6 +504,42 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     }
   });
 
+  // --- base-currency ------------------------------------------------------
+  auto* base_currency =
+      app.add_subcommand("base-currency", "Show or set the collection base currency");
+  std::string base_currency_action;
+  std::string base_currency_value;
+  base_currency->add_option("action", base_currency_action, "set (to change the base currency)")
+      ->check(CLI::IsMember({"set"}));
+  base_currency->add_option("value", base_currency_value,
+                            "Currency code or name (required with 'set')");
+  base_currency->callback([&] {
+    auto service = CollectionService::from_data_dir(data_dir);
+    if (base_currency_action == "set") {
+      if (base_currency_value.empty()) {
+        err << "error: 'base-currency set' requires a currency code or name\n";
+        result = 1;
+        return;
+      }
+      const LookupEntry entry =
+          service.resolve_lookup(LookupKind::Currency, lang, base_currency_value);
+      if (!service.set_base_currency(entry.id)) {
+        err << "error: could not set base currency to '" << base_currency_value << "'\n";
+        result = 1;
+        return;
+      }
+      out << "Base currency set to " << entry.code << "\t" << entry.display_name(lang) << "\n";
+      return;
+    }
+    const auto current = service.base_currency();
+    if (!current) {
+      err << "error: no base currency configured\n";
+      result = 1;
+      return;
+    }
+    out << current->code << "\t" << current->display_name(lang) << "\n";
+  });
+
   // --- summary ------------------------------------------------------------
   auto* summary = app.add_subcommand("summary", "Show collection totals");
   std::string summary_type = std::string(coins::to_string(coins::kDefaultSummaryType));
@@ -503,9 +551,10 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     const coins::SummaryType type =
         coins::summary_type_from_string(summary_type).value_or(coins::kDefaultSummaryType);
     auto service = CollectionService::from_data_dir(data_dir);
+    const std::string base_code = base_currency_code(service);
     const CollectionSummary totals = service.summary(type, lang);
     out << "Coins: " << totals.coin_count << "\n";
-    out << std::format("Total estimated value: {:.2f} EUR\n", totals.total_estimate_eur);
+    out << std::format("Total estimated value: {:.2f} {}\n", totals.total_estimate_eur, base_code);
 
     if (type != coins::SummaryType::TotalValue) {
       const std::string_view heading = [type] {

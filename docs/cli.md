@@ -13,7 +13,8 @@ its behaviour matches the web app and REST API.
 - [Commands](#commands)
   - [`add`](#add) · [`list`](#list) · [`show`](#show) · [`update`](#update) ·
     [`delete`](#delete) · [`estimate`](#estimate) · [`link`](#link) ·
-    [`image`](#image) · [`lookups`](#lookups) · [`summary`](#summary) ·
+    [`image`](#image) · [`lookups`](#lookups) · [`base-currency`](#base-currency) ·
+    [`summary`](#summary) ·
     [`export`](#export) · [`import`](#import)
 - [Exit codes](#exit-codes)
 - [Worked example](#worked-example)
@@ -129,6 +130,20 @@ naturally — "50 øre" rather than "0.5 NOK". On `add`/`update`:
 Named historical pieces (Speciedaler, Skilling, Sovereign, …) are recorded with
 `--denomination` instead of, or in addition to, a face value.
 
+## Base currency and amounts
+
+Value estimates (`estimate --amount`) and acquisition price (`add/update
+--acquired-price`) are recorded in a single, collection-wide **base currency**,
+chosen from the currency vocabulary and defaulting to **EUR**. This is distinct
+from each coin's own face-value currency (`--currency`), which is never converted.
+
+- Set or view it with the [`base-currency`](#base-currency) command (or the web
+  Settings view). The choice is stored with the collection.
+- **No conversion** is performed: amounts are stored exactly as entered. Changing
+  the base currency relabels existing amounts rather than converting them.
+- The CLI shows amounts with the base-currency code (e.g. `Latest estimate:
+  120.50 NOK`) in `show`, `list`, and `summary`.
+
 ---
 
 ## Commands
@@ -159,7 +174,7 @@ coins add --country <code|name> --year <n> [options...]
 | `--grade-numeric <n>` | Numeric grade (validated 1–70 for Sheldon). |
 | `--grade-label <text>` | Symbolic grade (e.g. `MS`, `1+`; validated for the Norwegian scale). |
 | `--acquired-date <YYYY-MM-DD>` | Date acquired. |
-| `--acquired-price-eur <number>` | Price paid, in EUR. |
+| `--acquired-price <number>` | Price paid, in the collection base currency. |
 | `--acquired-source <text>` | Where/how it was acquired. |
 | `--notes <text>` | Free-text notes. |
 
@@ -171,7 +186,7 @@ $CLI --data-dir mydata add --country Norway --year 1963 \
      --denomination "50 Øre" --currency NOK --face-value 50 --face-unit øre \
      --mint Kongsberg --composition "Copper-nickel" \
      --grade-scale Norwegian --grade-label 1+ \
-     --acquired-date 2024-11-03 --acquired-price-eur 2.5 --acquired-source "coin fair"
+     --acquired-date 2024-11-03 --acquired-price 2.5 --acquired-source "coin fair"
 ```
 
 ### `list`
@@ -256,17 +271,17 @@ Append a EUR value estimate to a coin. Estimates are **append-only history**;
 the most recent is the coin's current value.
 
 ```bash
-coins estimate <id> --eur <amount> [--date YYYY-MM-DD] [--source <text>]
+coins estimate <id> --amount <value> [--date YYYY-MM-DD] [--source <text>]
 ```
 
 | Option | Notes |
 |--------|-------|
-| `--eur <amount>` | Estimated value in EUR. **Required.** |
+| `--amount <value>` | Estimated value in the collection base currency. **Required.** |
 | `--date <YYYY-MM-DD>` | Estimate date (defaults to today). |
 | `--source <text>` | How the estimate was derived (e.g. "Numista range"). |
 
 ```bash
-$CLI --data-dir mydata estimate 1 --eur 3.5 --date 2026-01-05 --source "re-check"
+$CLI --data-dir mydata estimate 1 --amount 3.5 --date 2026-01-05 --source "re-check"
 ```
 
 ### `link`
@@ -325,6 +340,27 @@ An unknown kind exits non-zero.
 ```bash
 $CLI --data-dir mydata --lang nb lookups country   # e.g. "NO<TAB>Norge"
 $CLI --data-dir mydata lookups currency
+```
+
+### `base-currency`
+
+Show or set the collection's **base currency** — the currency that all value
+estimates and acquisition prices are expressed in (see
+[Base currency](#base-currency-and-amounts)).
+
+```bash
+coins base-currency               # show the current base currency (CODE<TAB>Name)
+coins base-currency set <code|name>   # set it (e.g. NOK, or "Norwegian krone")
+```
+
+Setting resolves the value against the currency vocabulary (code or localized
+name). No conversion is performed — changing the base currency only relabels the
+amounts you have already entered.
+
+```bash
+$CLI --data-dir mydata base-currency            # e.g. "EUR<TAB>Euro"
+$CLI --data-dir mydata base-currency set NOK
+$CLI --data-dir mydata --lang nb base-currency  # "NOK<TAB>norsk krone"
 ```
 
 ### `summary`

@@ -16,7 +16,9 @@
 #include "coins/db/statement.hpp"
 #include "coins/image.hpp"
 #include "coins/json.hpp"
+#include "coins/lookup_kind.hpp"
 #include "coins/reference_link.hpp"
+#include "coins/settings_service.hpp"
 #include "coins/value_estimate.hpp"
 
 namespace coins {
@@ -28,7 +30,7 @@ using db::Statement;
 constexpr std::string_view kCoinColumns =
     "id, country_id, denomination_id, face_value, currency_id, face_unit_id, year_from, "
     "year_to, mint_id, mint_mark, composition_id, weight_g, diameter_mm, grade_scale, "
-    "grade_numeric, grade_label, acquired_date, acquired_price_eur, acquired_source, notes, "
+    "grade_numeric, grade_label, acquired_date, acquired_price, acquired_source, notes, "
     "created_at, updated_at";
 
 // --- Row readers ----------------------------------------------------------
@@ -54,7 +56,7 @@ Coin map_coin(Statement& stmt) {
   }
   coin.grade_label = stmt.column_opt_text(15);
   coin.acquired_date = stmt.column_opt_text(16);
-  coin.acquired_price_eur = stmt.column_opt_double(17);
+  coin.acquired_price = stmt.column_opt_double(17);
   coin.acquired_source = stmt.column_opt_text(18);
   coin.notes = stmt.column_opt_text(19);
   coin.created_at = stmt.column_text(20);
@@ -74,14 +76,14 @@ std::vector<Coin> read_coins(db::Database& db) {
 std::vector<ValueEstimate> read_estimates(db::Database& db, Id coin_id) {
   std::vector<ValueEstimate> estimates;
   Statement stmt = db.prepare(
-      "SELECT id, coin_id, amount_eur, estimated_at, source FROM value_estimate "
+      "SELECT id, coin_id, amount, estimated_at, source FROM value_estimate "
       "WHERE coin_id = ? ORDER BY id;");
   stmt.bind(1, coin_id);
   while (stmt.step()) {
     ValueEstimate estimate;
     estimate.id = stmt.column_int64(0);
     estimate.coin_id = stmt.column_int64(1);
-    estimate.amount_eur = stmt.column_double(2);
+    estimate.amount = stmt.column_double(2);
     estimate.estimated_at = stmt.column_text(3);
     estimate.source = stmt.column_opt_text(4);
     estimates.push_back(std::move(estimate));
@@ -132,7 +134,7 @@ void insert_coin(db::Database& db, const Coin& coin) {
   Statement stmt = db.prepare(
       "INSERT INTO coin (id, country_id, denomination_id, face_value, currency_id, "
       "face_unit_id, year_from, year_to, mint_id, mint_mark, composition_id, weight_g, "
-      "diameter_mm, grade_scale, grade_numeric, grade_label, acquired_date, acquired_price_eur, "
+      "diameter_mm, grade_scale, grade_numeric, grade_label, acquired_date, acquired_price, "
       "acquired_source, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
       "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
   int i = 1;
@@ -153,7 +155,7 @@ void insert_coin(db::Database& db, const Coin& coin) {
   stmt.bind(i++, coin.grade_numeric);
   stmt.bind(i++, coin.grade_label);
   stmt.bind(i++, coin.acquired_date);
-  stmt.bind(i++, coin.acquired_price_eur);
+  stmt.bind(i++, coin.acquired_price);
   stmt.bind(i++, coin.acquired_source);
   stmt.bind(i++, coin.notes);
   stmt.bind(i++, std::string_view{coin.created_at});
@@ -163,11 +165,11 @@ void insert_coin(db::Database& db, const Coin& coin) {
 
 void insert_estimate(db::Database& db, const ValueEstimate& estimate) {
   Statement stmt = db.prepare(
-      "INSERT INTO value_estimate (id, coin_id, amount_eur, estimated_at, source) "
+      "INSERT INTO value_estimate (id, coin_id, amount, estimated_at, source) "
       "VALUES (?, ?, ?, ?, ?);");
   stmt.bind(1, estimate.id);
   stmt.bind(2, estimate.coin_id);
-  stmt.bind(3, estimate.amount_eur);
+  stmt.bind(3, estimate.amount);
   stmt.bind(4, std::string_view{estimate.estimated_at});
   stmt.bind(5, estimate.source);
   (void)stmt.step();
@@ -349,12 +351,43 @@ LookupIdMaps import_lookups(db::Database& db, const json& lookups) {
   return it == m.end() ? std::nullopt : std::optional<Id>{it->second};
 }
 
+// --- Settings (base currency) ---------------------------------------------
+
+// Exports collection settings. The base currency is referenced by its currency
+// `code` so the export stays portable across differently-seeded databases.
+json export_settings(db::Database& db) {
+  json settings = json::object();
+  db::SqliteLookupRepository repo{db};
+  SettingsService svc{db, repo};
+  if (const auto currency = svc.base_currency()) {
+    settings["base_currency_code"] = currency->code;
+  }
+  return settings;
+}
+
+// Applies the settings section: resolves the base currency by code (it was
+// imported into `lookups` first) and sets it. Unknown/missing codes are ignored
+// so import stays lenient.
+void import_settings(db::Database& db, const json& settings) {
+  if (!settings.is_object() || !settings.contains("base_currency_code")) {
+    return;
+  }
+  const std::string code = settings.value("base_currency_code", "");
+  if (code.empty()) return;
+  db::SqliteLookupRepository repo{db};
+  if (const auto entry = repo.find_by_code(LookupKind::Currency, code)) {
+    SettingsService svc{db, repo};
+    (void)svc.set_base_currency(entry->id);
+  }
+}
+
 }  // namespace
 
 std::string export_json(db::Database& db) {
   json root;
-  root["version"] = 2;
+  root["version"] = 3;
   root["lookups"] = export_lookups(db);
+  root["settings"] = export_settings(db);
   root["coins"] = json::array();
   for (const Coin& coin : read_coins(db)) {
     json coin_json = coin_to_json(coin);
@@ -475,6 +508,9 @@ std::expected<ImportStats, ValidationErrors> import_json(db::Database& db,
     if (root.contains("lookups") && root.at("lookups").is_object()) {
       maps = import_lookups(db, root.at("lookups"));
     }
+    if (root.contains("settings")) {
+      import_settings(db, root.at("settings"));
+    }
 
     ImportStats stats;
     for (const CoinGraph& graph : graphs) {
@@ -528,12 +564,12 @@ std::string export_csv(db::Database& db, std::string_view lang) {
   std::string out =
       "id,country,denomination,face_value,face_unit,currency,year_from,year_to,mint,mint_mark,"
       "composition,weight_g,diameter_mm,grade_scale,grade_numeric,grade_label,acquired_date,"
-      "acquired_price_eur,acquired_source,notes,created_at,updated_at,latest_estimate_eur,"
+      "acquired_price,acquired_source,notes,created_at,updated_at,latest_estimate,"
       "latest_estimate_at\n";
 
   Statement stmt = db.prepare(
       "SELECT " + std::string{kCoinColumns} +
-      ", le.amount_eur, le.estimated_at FROM coin c LEFT JOIN (SELECT coin_id, amount_eur, "
+      ", le.amount, le.estimated_at FROM coin c LEFT JOIN (SELECT coin_id, amount, "
       "estimated_at, ROW_NUMBER() OVER (PARTITION BY coin_id ORDER BY estimated_at DESC, id DESC) "
       "AS rn FROM value_estimate) le ON le.coin_id = c.id AND le.rn = 1 ORDER BY c.id;");
 
@@ -559,7 +595,7 @@ std::string export_csv(db::Database& db, std::string_view lang) {
                                   csv_opt_int(coin.grade_numeric),
                                   csv_opt_string(coin.grade_label),
                                   csv_opt_string(coin.acquired_date),
-                                  csv_opt_double(coin.acquired_price_eur),
+                                  csv_opt_double(coin.acquired_price),
                                   csv_opt_string(coin.acquired_source),
                                   csv_opt_string(coin.notes),
                                   csv_escape(coin.created_at),

@@ -38,7 +38,7 @@ class SqliteValueEstimateRepositoryTest : public ::testing::Test {
   ValueEstimate estimate(double amount, std::string date) {
     ValueEstimate est;
     est.coin_id = coin_id_;
-    est.amount_eur = amount;
+    est.amount = amount;
     est.estimated_at = std::move(date);
     return est;
   }
@@ -83,7 +83,7 @@ TEST_F(SqliteValueEstimateRepositoryTest, LatestForCoinReturnsMostRecent) {
   const auto latest = repo.latest_for_coin(coin_id_);
   ASSERT_TRUE(latest.has_value());
   EXPECT_EQ(latest->estimated_at, "2026-03-01");
-  EXPECT_DOUBLE_EQ(latest->amount_eur, 30.0);
+  EXPECT_DOUBLE_EQ(latest->amount, 30.0);
 }
 
 TEST_F(SqliteValueEstimateRepositoryTest, LatestForCoinBreaksTiesByIdInsertionOrder) {
@@ -95,7 +95,7 @@ TEST_F(SqliteValueEstimateRepositoryTest, LatestForCoinBreaksTiesByIdInsertionOr
   const auto latest = repo.latest_for_coin(coin_id_);
   ASSERT_TRUE(latest.has_value());
   EXPECT_EQ(latest->id, second->id);
-  EXPECT_DOUBLE_EQ(latest->amount_eur, 99.0);
+  EXPECT_DOUBLE_EQ(latest->amount, 99.0);
 }
 
 TEST_F(SqliteValueEstimateRepositoryTest, LatestForCoinWithNoEstimatesIsNullopt) {

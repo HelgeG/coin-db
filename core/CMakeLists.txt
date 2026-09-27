@@ -5,6 +5,7 @@ add_library(coins_core
   src/grade.cpp
   src/lookup_entry.cpp
   src/lookup_service.cpp
+  src/settings_service.cpp
   src/validation.cpp
   src/clock.cpp
   src/fs_image_store.cpp

@@ -91,7 +91,7 @@ TEST_F(SqliteCoinRepositoryTest, GetReturnsFullyPopulatedCoin) {
   coin.grade_scale = "Norwegian";
   coin.grade_label = "1+";
   coin.acquired_date = "2025-12-24";
-  coin.acquired_price_eur = 3.25;
+  coin.acquired_price = 3.25;
   coin.acquired_source = "auction";
   coin.notes = "gift";
 
@@ -200,8 +200,8 @@ TEST_F(SqliteCoinRepositoryTest, RemoveCascadesToChildren) {
   const auto created = repository.create(make_valid_coin());
   ASSERT_TRUE(created.has_value());
 
-  coins::db::Statement insert = db_.prepare(
-      "INSERT INTO value_estimate (coin_id, amount_eur, estimated_at) VALUES (?, ?, ?);");
+  coins::db::Statement insert =
+      db_.prepare("INSERT INTO value_estimate (coin_id, amount, estimated_at) VALUES (?, ?, ?);");
   insert.bind(1, created->id);
   insert.bind(2, 100.0);
   insert.bind(3, std::string_view{"2026-01-01"});

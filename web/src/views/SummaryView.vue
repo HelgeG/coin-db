@@ -5,9 +5,11 @@ import { api } from '../api/client'
 import type { CollectionSummary, SummaryType } from '../api/types'
 import { summaryTypes } from '../api/types'
 import type { MessageKey } from '../i18n/messages'
+import { useBaseCurrency } from '../composables/useBaseCurrency'
 import { useI18n } from '../composables/useI18n'
 
-const { t, eur } = useI18n()
+const { t, money } = useI18n()
+const { code: baseCurrencyCode, ensureLoaded } = useBaseCurrency()
 
 /** The i18n key for a summary type's label (e.g. 'summary.type.by_country'). */
 function typeLabelKey(type: SummaryType): MessageKey {
@@ -51,7 +53,10 @@ watch(selectedType, (type) => {
   void load()
 })
 
-onMounted(load)
+onMounted(() => {
+  void ensureLoaded()
+  void load()
+})
 </script>
 
 <template>
@@ -65,7 +70,7 @@ onMounted(load)
         <dt>{{ t('summary.coins') }}</dt>
         <dd>{{ summary ? summary.coin_count : '—' }}</dd>
         <dt>{{ t('summary.totalValue') }}</dt>
-        <dd>{{ summary ? eur(summary.total_estimate_eur) : '—' }}</dd>
+        <dd>{{ summary ? money(summary.total_estimate_eur, baseCurrencyCode) : '—' }}</dd>
       </dl>
     </section>
 

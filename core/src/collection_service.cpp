@@ -9,6 +9,7 @@
 #include "coins/db/sqlite_value_estimate_repository.hpp"
 #include "coins/image_service.hpp"
 #include "coins/lookup_service.hpp"
+#include "coins/settings_service.hpp"
 #include "coins/summary_service.hpp"
 
 namespace coins {
@@ -154,6 +155,18 @@ CurrencyUnit CollectionService::resolve_currency_unit(Id currency_id, std::strin
   db::SqliteLookupRepository repo{db_};
   LookupService service{repo};
   return service.resolve_or_create_unit(currency_id, lang, text);
+}
+
+std::optional<LookupEntry> CollectionService::base_currency() {
+  db::SqliteLookupRepository repo{db_};
+  SettingsService settings{db_, repo};
+  return settings.base_currency();
+}
+
+bool CollectionService::set_base_currency(Id currency_id) {
+  db::SqliteLookupRepository repo{db_};
+  SettingsService settings{db_, repo};
+  return settings.set_base_currency(currency_id);
 }
 
 std::string CollectionService::export_json() { return coins::export_json(db_); }

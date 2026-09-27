@@ -169,4 +169,25 @@ void seed_lookups(Database& db) {
   }
 }
 
+void seed_base_currency(Database& db) {
+  // Already set? Leave it untouched (idempotent).
+  {
+    Statement find = db.prepare("SELECT value FROM app_setting WHERE key = 'base_currency_id';");
+    if (find.step()) {
+      return;
+    }
+  }
+  // Default to the EUR currency entry.
+  Statement eur =
+      db.prepare("SELECT id FROM lookup_entry WHERE kind = 'currency' AND code = 'EUR';");
+  if (!eur.step()) {
+    return;  // No EUR seeded (shouldn't happen); leave unset.
+  }
+  const Id eur_id = eur.column_int64(0);
+  Statement set =
+      db.prepare("INSERT INTO app_setting (key, value) VALUES ('base_currency_id', ?);");
+  set.bind(1, std::to_string(eur_id));
+  (void)set.step();
+}
+
 }  // namespace coins::db

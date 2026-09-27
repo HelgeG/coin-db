@@ -238,28 +238,28 @@ entries referenced by id. Breaking schema/API/export change with a DB migration
 Makes the hand-rolled web i18n complete, enforced, and correctly formatted
 (no new runtime dependency). Data-value localization (Req 8) is unchanged.
 
-- [ ] C — Split dictionaries: move message strings into per-area modules under
+- [x] C — Split dictionaries: move message strings into per-area modules under
       `web/src/i18n/messages/` (`app`, `nav`, `common`, `lookup`, `coin`,
       `summary`, `settings`) and compose them into `en`/`nb`; keep
       `availableLocales`. No behaviour change; typecheck + build stay green.
-- [ ] A1 — Typed keys + completeness guard: derive `MessageKey = keyof typeof en`,
+- [x] A1 — Typed keys + completeness guard: derive `MessageKey = keyof typeof en`,
       type `t(key: MessageKey, params?)`, and declare each other locale as
       `Record<MessageKey, string>` so a missing/extra translation is a `vue-tsc`
       compile error (the enforcement mechanism — no test runner exists yet, and
       the typed `Record` is a stronger, build-time guarantee). Keep the runtime
       English fallback as a last resort.
-- [ ] B — Formatting + plurals: add `n(value, options?)`, `d(dateISO, options?)`,
+- [x] B — Formatting + plurals: add `n(value, options?)`, `d(dateISO, options?)`,
       and a EUR currency helper to `useI18n` using `Intl.*` keyed on the active
       locale; extend `t()` to accept `{ one, other }` values selected by a `count`
       param via `Intl.PluralRules`. Apply `n()`/`d()` to the EUR total in
       SummaryView and to amounts/dates/`€price` in CoinDetailView.
-- [ ] A2 — Sweep hardcoded strings: route all user-facing text in
+- [x] A2 — Sweep hardcoded strings: route all user-facing text in
       `CoinListView.vue` and `CoinDetailView.vue` through `t()` (titles, search
       form labels + option labels, table headers, buttons, placeholders,
       empty-state messages, the delete `confirm()` text, "Choose an image file
       first"); add the new keys to `en` + `nb`. Exempt accent names and locale
       self-labels.
-- [ ] Verify: `vue-tsc` typecheck (which now enforces key completeness) +
+- [x] Verify: `vue-tsc` typecheck (which now enforces key completeness) +
       `vite build` pass; a manual language-switch check shows no residual English
       in nb.
 
@@ -269,28 +269,28 @@ Replace the hardcoded EUR assumption with a single, user-selectable collection
 base currency (a `currency` lookup reference) for value estimates and
 acquisition price. No conversion. Breaking schema v3 (no production data).
 
-- [ ] Schema v3 + settings: add `app_setting` table; rename
+- [x] Schema v3 + settings: add `app_setting` table; rename
       `value_estimate.amount_eur` → `amount` and `coin.acquired_price_eur` →
       `acquired_price`; bump `kSchemaVersion` to 3 (version-aware bootstrap);
       seed `base_currency_id` to the EUR currency entry. Schema/migration tests.
-- [ ] Core `SettingsService`: `base_currency()` (defaults/seeds EUR) and
+- [x] Core `SettingsService`: `base_currency()` (defaults/seeds EUR) and
       `set_base_currency(id)` (validates the id is a `currency` entry); expose via
       `CollectionService` plus a helper to format an amount with the base
       currency. Update `ValueEstimate`/`Coin` domain fields and validation
       (`amount`, `acquired_price`) and the repositories/JSON. Unit tests.
-- [ ] Summary + search: headline total and value filters use the renamed `amount`
+- [x] Summary + search: headline total and value filters use the renamed `amount`
       column; display the base currency. Update tests.
-- [ ] CLI: `estimate --amount` (rename from `--eur`), `add/update
+- [x] CLI: `estimate --amount` (rename from `--eur`), `add/update
       --acquired-price` (rename from `--acquired-price-eur`); new `base-currency`
       command (show / `set <code|name>`); show/list/summary display amounts with
       the base-currency code/name. CLI tests.
-- [ ] Server: `GET/PUT /settings` (base currency as `{ id, code, name }`); coin
+- [x] Server: `GET/PUT /settings` (base currency as `{ id, code, name }`); coin
       and summary JSON amounts unchanged in shape but documented as base currency;
       estimate endpoint accepts `amount`. API tests.
-- [ ] Web: Settings base-currency selector (currency combo, notes no-conversion);
+- [x] Web: Settings base-currency selector (currency combo, notes no-conversion);
       display estimates/acquisition/summary in the base currency (fetch it once);
       rename form fields. i18n keys (en/nb). Typecheck + build.
-- [ ] Import/export: JSON carries the base-currency setting (by code) and applies
+- [x] Import/export: JSON carries the base-currency setting (by code) and applies
       it on import; CSV amount columns are in the base currency. Update
       `samples/collection.sample.json`, postman, `review.md`. Round-trip test.
-- [ ] Verify: full build + ctest + web build; seed + base-currency smoke test.
+- [x] Verify: full build + ctest + web build; seed + base-currency smoke test.

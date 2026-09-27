@@ -103,7 +103,7 @@ TEST_F(CollectionServiceTest, EstimateAndSummaryFlow) {
 
   coins::ValueEstimate est;
   est.coin_id = coin->id;
-  est.amount_eur = 42.0;
+  est.amount = 42.0;
   est.estimated_at = "2026-01-01";
   ASSERT_TRUE(service_.add_estimate(est).has_value());
 

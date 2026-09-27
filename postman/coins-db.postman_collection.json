@@ -90,7 +90,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"amount_eur\": 120.5,\n  \"estimated_at\": \"2026-01-01\"\n}"
+          "raw": "{\n  \"amount\": 120.5,\n  \"estimated_at\": \"2026-01-01\"\n}"
         }
       },
       "event": [
@@ -99,7 +99,7 @@
           "script": {
             "exec": [
               "pm.test('status is 201', () => pm.response.to.have.status(201));",
-              "pm.test('amount echoed', () => pm.expect(pm.response.json().amount_eur).to.eql(120.5));"
+              "pm.test('amount echoed', () => pm.expect(pm.response.json().amount).to.eql(120.5));"
             ],
             "type": "text/javascript"
           }
@@ -239,6 +239,48 @@
               "pm.sendRequest({ url: pm.variables.replaceIn('{{base_url}}') + '/currencies/' + nok.id + '/units', method: 'GET' }, (err, res) => {",
               "  pm.test('units listed for NOK', () => { const units = res.json(); pm.expect(units).to.be.an('array'); pm.expect(units.some(u => u.name === 'øre')).to.be.true; });",
               "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get settings (base currency)",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/settings", "host": ["{{base_url}}"], "path": ["settings"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('base currency is a localized ref', () => { pm.expect(body.base_currency).to.be.an('object'); pm.expect(body.base_currency).to.have.keys(['id','code','name']); });",
+              "pm.test('defaults to EUR', () => pm.expect(body.base_currency.code).to.eql('EUR'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Set base currency (NOK)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/settings", "host": ["{{base_url}}"], "path": ["settings"] },
+        "body": { "mode": "raw", "raw": "{\n  \"base_currency\": \"NOK\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('base currency is now NOK', () => pm.expect(pm.response.json().base_currency.code).to.eql('NOK'));"
             ],
             "type": "text/javascript"
           }

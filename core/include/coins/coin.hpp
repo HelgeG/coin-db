@@ -46,9 +46,9 @@ struct Coin {
   std::optional<int> grade_numeric;        // e.g. 65
   std::optional<std::string> grade_label;  // e.g. "MS", "VF"
 
-  // Acquisition (price normalized to EUR).
+  // Acquisition (price in the collection base currency).
   std::optional<std::string> acquired_date;  // ISO 8601
-  std::optional<double> acquired_price_eur;
+  std::optional<double> acquired_price;
   std::optional<std::string> acquired_source;
 
   std::optional<std::string> notes;

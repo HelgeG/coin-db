@@ -1,5 +1,11 @@
 <script setup lang="ts">
+import { onMounted, ref, watch } from 'vue'
+
+import { api } from '../api/client'
+import type { LookupInput, LookupRef } from '../api/types'
+import LookupCombo from '../components/LookupCombo.vue'
 import { type AccentPreference, useAccent } from '../composables/useAccent'
+import { useBaseCurrency } from '../composables/useBaseCurrency'
 import { useI18n } from '../composables/useI18n'
 import { type ThemePreference, useTheme } from '../composables/useTheme'
 import type { Locale } from '../i18n/messages'
@@ -7,8 +13,13 @@ import type { Locale } from '../i18n/messages'
 const { preference, setTheme } = useTheme()
 const { preference: accent, accents, setAccent } = useAccent()
 const { locale, locales, t, setLocale } = useI18n()
+const { baseCurrency, ensureLoaded, refresh } = useBaseCurrency()
 
 const themeOptions: ThemePreference[] = ['light', 'dark', 'system']
+
+// The currency selector's model. Kept in sync with the loaded base currency.
+const currency = ref<LookupRef | null>(null)
+const currencyError = ref<string | null>(null)
 
 function onThemeChange(event: Event): void {
   setTheme((event.target as HTMLSelectElement).value as ThemePreference)
@@ -17,6 +28,35 @@ function onThemeChange(event: Event): void {
 function onLocaleChange(event: Event): void {
   setLocale((event.target as HTMLSelectElement).value as Locale)
 }
+
+/** Turn the combo ref into the wire input: {id} for existing, {name} for new. */
+function toLookupInput(ref_: LookupRef | null): LookupInput {
+  if (ref_ == null) return null
+  return ref_.id > 0 ? { id: ref_.id } : { name: ref_.name }
+}
+
+async function onBaseCurrencyChange(next: LookupRef | null): Promise<void> {
+  const input = toLookupInput(next)
+  if (input == null) return
+  currencyError.value = null
+  try {
+    await api.updateSettings(input, locale.value)
+    await refresh(locale.value)
+  } catch (e) {
+    currencyError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+// Reflect the loaded/updated base currency into the selector.
+watch(
+  baseCurrency,
+  (bc) => {
+    currency.value = bc ? { ...bc } : null
+  },
+  { immediate: true },
+)
+
+onMounted(() => void ensureLoaded(locale.value))
 </script>
 
 <template>
@@ -63,6 +103,19 @@ function onLocaleChange(event: Event): void {
       </select>
     </div>
     <p class="muted">{{ t('settings.languageHelp') }}</p>
+  </section>
+
+  <section class="panel">
+    <h2>{{ t('settings.baseCurrency') }}</h2>
+    <LookupCombo
+      :model-value="currency"
+      kind="currency"
+      :label="t('settings.baseCurrency')"
+      required
+      @update:model-value="onBaseCurrencyChange"
+    />
+    <small v-if="currencyError" class="error">{{ currencyError }}</small>
+    <p class="muted">{{ t('settings.baseCurrencyHelp') }}</p>
   </section>
 </template>
 
