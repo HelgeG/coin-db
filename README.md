@@ -87,6 +87,8 @@ $CLI --data-dir mydata export --format json --out backup.json
 The CLI and server store the database and image store under the data directory
 (CLI default `coins-data`): `<data-dir>/coins.db` and `<data-dir>/images/`.
 
+For a full command-by-command guide to the CLI, see [`docs/cli.md`](docs/cli.md).
+
 ### Sample data
 
 Seed a data directory with an example collection (imports `samples/collection.sample.json`):
