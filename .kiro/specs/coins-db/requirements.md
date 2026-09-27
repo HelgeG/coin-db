@@ -61,7 +61,9 @@ it and see it visually.
 As a collector, I want to find coins quickly.
 
 - WHEN I search, THEN I can filter by country, year (or range), denomination,
-  condition/grade, metal, and value range.
+  condition/grade, metal, and value range. For the encoded fields (country,
+  denomination, metal) the filter matches the **lookup entry**, and results
+  display its localized name (see Req 8).
 - WHEN I view results, THEN I can sort by year, country, value estimate, or date added.
 - WHEN I search by free text, THEN it matches description, country, and reference labels.
 
@@ -99,8 +101,13 @@ As a collector, I want to maintain my records.
 
 As a collector, I want to back up and move my data.
 
-- WHEN I export, THEN the full collection is written to a portable format (e.g., CSV
-  and/or JSON).
+- WHEN I export, THEN the full collection is written to a portable format. Both
+  **JSON** and **CSV** exports are supported.
+- WHERE I export to CSV, THEN encoded fields (country, denomination, composition,
+  mint, currency, and currency unit) are written as their **localized display
+  name in the active language** — never as codes — so the CSV is a
+  human-readable snapshot. (JSON export remains code-based and self-contained for
+  exact round-trips.)
 - WHEN I import a previously exported file, THEN coins are added/updated without
   corrupting existing data.
 
@@ -117,16 +124,83 @@ As a collector using the web app, I want to control appearance and language.
   Norwegian bokmål to start), and the choice persists across sessions.
 - WHERE a string is not yet translated, THEN the app falls back to English.
 
+### 8. Encoded, localized field vocabularies
+
+As a collector, I want frequently-repeated coin fields stored as reusable,
+localized values so the same real-world thing is recorded consistently and shown
+in my language.
+
+The fields covered by this (the "controlled vocabularies" / lookups) are:
+**country, denomination, composition (metal), mint, and currency** (the coin's
+own face-value currency). Each other coin field is unchanged.
+
+- WHEN a coin records one of these fields, THEN it references a shared lookup
+  **entry by code** rather than storing free text, so the same entry is reused
+  across coins.
+- Each lookup entry has a stable **code** and a **display name per interface
+  language** (English and Norwegian bokmål to start). For **country** the code is
+  the standard **ISO 3166-1 alpha-2** code for currently-existing countries (e.g.
+  `NO`, `US`); for **currency** the code is the **ISO 4217** code (e.g. `NOK`);
+  for denomination, composition, and mint the code is **app-generated**.
+- WHERE a country no longer exists (historical states such as Yugoslavia,
+  Czechoslovakia, or the Soviet Union), THEN I can still record it: it is a
+  first-class country entry using its **ISO 3166-3** formerly-used code when one
+  exists (e.g. `YUCS` Yugoslavia, `CSHH` Czechoslovakia, `SUHH` USSR), or an
+  app-generated country code otherwise. Historical and current countries are
+  treated identically everywhere (selection, search, summaries).
+- WHERE a currency is no longer in use (e.g. the Deutsche Mark, or pre-euro
+  national currencies), THEN I can still record it: it is a first-class currency
+  entry using its **ISO 4217** historical code when one exists (e.g. `DEM`), or
+  an app-generated currency code for currencies that predate ISO 4217. Denomination
+  entries are **era-independent** — any denomination can be recorded for any
+  coin, with no coupling to a country or to a currency's period of use.
+- WHEN the app starts on a fresh database, THEN the country vocabulary is
+  **seeded** with ISO 3166-1 countries and a set of common historical states
+  (ISO 3166-3 formerly-used codes), and the currency vocabulary is **seeded**
+  with ISO 4217 current and common historical currencies — each with English and
+  Norwegian names. Seeded currencies also seed their standard **units** (e.g. NOK
+  → krone + øre, USD → dollar + cent).
+- WHERE a currency has more than one denomination unit (e.g. krone and øre,
+  dollar and cent), THEN each currency has one or more localized **units** and I
+  can record a coin's face value in a chosen unit — so a coin reads as "50 øre",
+  not "0.5 NOK". Choosing a unit is **optional**; when omitted the value is in the
+  currency's major unit. I can add a new unit to a currency on the fly (like other
+  vocabulary entries).
+- WHERE a coin is a named historical piece (Speciedaler, Skilling, Sovereign,
+  Ducat, …), THEN I can record it via the optional **denomination** name; a coin
+  may use a denomination name, a face value + unit, or both, and none is required.
+- WHEN I view a coin (web or CLI), THEN each lookup field is shown using the
+  entry's display name **in the active language**, falling back to English, then
+  to any available name, then to the code.
+- WHEN I add or edit a coin and a needed value does not yet exist, THEN I can add
+  a new vocabulary entry freely; its display name is recorded **in the active
+  language**.
+- WHERE a new entry's display name matches an existing entry's name in the same
+  language (compared **case-insensitively**), THEN the existing entry is reused
+  rather than creating a duplicate.
+- WHEN I use the web app, THEN each lookup field is presented as a **combo box**:
+  a dropdown to pick an existing entry (shown by localized name) combined with a
+  text field to type and add a new one.
+- WHEN I use the CLI, THEN a lookup field accepts **either a code or a display
+  name**; a name is resolved to an existing entry (case-insensitive, active
+  language) or creates a new entry if none matches.
+- WHEN I search or view a summary that groups by one of these fields, THEN
+  grouping and filtering operate on the **entry** (so localized names of the same
+  entry are never split), while results display the localized name.
+
 ## Data Attributes (summary)
 
 | Attribute            | Notes                                             |
 |----------------------|---------------------------------------------------|
-| Country of origin    | Required                                          |
-| Currency/denomination| e.g., "50 Øre", "1 Dollar"                        |
-| Face value + currency| Numeric value plus the coin's own currency code   |
+| Country of origin    | Required; **lookup entry** (ISO 3166-1 alpha-2 code, localized name) |
+| Denomination         | Optional; **lookup entry** (generated code, localized name); a named piece (e.g. Speciedaler, Skilling, Sovereign), era-independent |
+| Face value           | Optional numeric value, expressed in a currency unit (e.g. 50 øre) |
+| Currency             | Optional; **lookup entry** (ISO 4217 code, localized name); the coin's own face-value currency, never converted |
+| Currency unit        | Optional; a localized unit of the currency (e.g. krone, øre); the unit the face value is in (major unit if unset) |
 | Year / year range    | Required; support single year or range            |
-| Mint / mint mark     | Optional                                          |
-| Composition (metal)  | Optional                                          |
+| Mint                 | Optional; **lookup entry** (generated code, localized name) |
+| Mint mark            | Optional free text                                |
+| Composition (metal)  | Optional; **lookup entry** (generated code, localized name) |
 | Weight, diameter     | Optional physical measurements                    |
 | Condition / grade    | Any scale: numeric (Sheldon) or symbolic (Norwegian, adjectival) |
 | Value estimate (EUR) | Amount in EUR + date; history retained            |
@@ -146,3 +220,17 @@ As a collector using the web app, I want to control appearance and language.
 - Web frontend framework: **Vue 3 + Vite + TypeScript**.
 - Acquisition price is stored in **EUR only**; the original paid currency is not
   retained (callers convert to EUR before recording).
+- **Encoded localized vocabularies** (Req 8): covers country, denomination,
+  composition, mint, and **currency**. Country uses ISO 3166-1 alpha-2 codes
+  (ISO 3166-3 for historical states); currency uses ISO 4217 codes (current +
+  historical); denomination/composition/mint use app-generated codes. All are
+  seeded (country, currency) or grow on demand, addable freely and de-duplicated
+  by case-insensitive name match within a language. Display names are stored per
+  app language (en/nb) with English fallback. Because there is no production data
+  yet, the coin schema/API/export formats change in a **breaking** way (with a DB
+  migration), rather than preserving the old free-text shape. `coin_currency`
+  (free ISO text) becomes `currency_id` referencing a currency lookup entry.
+  Currencies have localized **units** (e.g. krone/øre) seeded for seeded
+  currencies and addable on demand; a coin records its face value against an
+  optional unit (major unit if unset), so "50 øre" is recorded as such. Named
+  pieces (Speciedaler, Skilling, Sovereign) use the optional denomination name.

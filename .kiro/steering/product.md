@@ -24,6 +24,10 @@ To replace ad-hoc notes/spreadsheets with a structured, searchable catalog that:
 ## Core capabilities
 
 - Record coins with required country + year and many optional attributes.
+- Store repeated fields (country, denomination, composition, mint, currency) as
+  shared, localized vocabulary entries shown in the active language
+  (English/Norwegian), reused across coins and addable on the fly — including
+  historical countries and currencies that no longer exist.
 - Attach reference links (URL + label) and images (copied into a managed store).
 - Add EUR value estimates as a retained history (never overwritten).
 - Search, filter, and sort the collection.
