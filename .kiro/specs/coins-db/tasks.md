@@ -162,3 +162,71 @@ selectable predefined breakdown, available in both the CLI and web app.
       i18n keys (en/nb) for the breakdown label and each type.
 - [x] Updated `postman/coins-db.postman_collection.json` (summary request with a
       `type` query param + breakdown assertions) and refreshed `review.md`.
+
+## Phase 12 — Encoded, localized field vocabularies (Req 8)
+
+Turns country, denomination, composition, and mint into shared, localized lookup
+entries referenced by id. Breaking schema/API/export change with a DB migration
+(no production data). Ordered so each layer builds on a tested one below it.
+
+- [ ] Core domain types: `enum class LookupKind { Country, Denomination,
+      Composition, Mint, Currency }` (with wire keys) and `LookupEntry { id,
+      kind, code, names: map<lang,name> }`. Update `Coin` to carry `country_id`
+      (required) and optional `denomination_id`/`mint_id`/`composition_id`/
+      `currency_id` (drop the free-text `country`/`denomination`/`mint`/
+      `composition` and the `coin_currency` string; keep `mint_mark`).
+- [ ] Schema + migration: add `lookup_entry`/`lookup_name` tables and the coin
+      `*_id` columns + indexes; bump `kSchemaVersion` to 2 and make
+      `bootstrap_schema` version-aware (v1 create-if-absent, then v2). Schema
+      tests for the migration and constraints.
+- [ ] Country + currency seed data: compiled-in ISO 3166-1 alpha-2 table **plus
+      common historical states** (ISO 3166-3 codes, e.g. `YUCS`/`CSHH`/`SUHH`)
+      and a compiled-in ISO 4217 currency table **plus common historical
+      currencies** (e.g. `DEM`), all with en/nb names; idempotent seeding on
+      bootstrap. Test that a fresh DB has the expected current + historical
+      country and currency entries and re-bootstrapping does not duplicate them.
+- [ ] `ILookupRepository` + `SqliteLookupRepository`: `find_by_code`,
+      `find_by_name(kind, lang, name)` (NOCASE), `list(kind, lang)`,
+      `create(kind, code, names)`, `set_name`. Repository tests incl.
+      case-insensitive resolution and uniqueness.
+- [ ] `LookupService`: `display_name(entry, lang)` fallback chain
+      (lang→en→any→code), `resolve_or_create(kind, lang, text)`, code-slug
+      generation for non-country kinds, and case-insensitive name de-dup. Unit
+      tests for each rule.
+- [ ] Currency units: `currency_unit`/`currency_unit_name` tables (schema v2),
+      `CurrencyUnit { id, currency_id, code, minor_per_unit, is_major, names }`,
+      repository + `LookupService::list_units/resolve_or_create_unit`; seed
+      standard units for seeded currencies (NOK→krone/øre, USD→dollar/cent,
+      EUR→euro/cent, …). Tests for unit resolution, seeding, and major-unit
+      default.
+- [ ] Coin validation + repository: validate `*_id` references by kind and
+      `face_unit_id` belongs to the coin's currency; update `SqliteCoinRepository`
+      reads/writes for the new columns (incl. `face_unit_id`). Wire
+      resolve-or-create (entries + units) into `CollectionService` add/update so
+      callers can pass a code, an id, or a name. Update/extend coin CRUD tests.
+- [ ] Search / summary: filter/sort/free-text over lookup ids + localized names;
+      `by_country`/`by_metal` breakdowns group by entry id with localized labels.
+      Update search + summary tests.
+- [ ] CLI: `--country/--denomination/--mint/--composition/--currency` accept
+      code-or-name; `--face-unit` (resolved within `--currency`, major unit if
+      omitted); global `--lang` (default en); `coins lookups <kind> [--lang]`;
+      localized value display ("50 øre") in `show`/`list`/`summary`. CLI tests.
+- [ ] Server: `GET/POST /lookups/{kind}` and `GET/POST /currencies/{id}/units`
+      (with `?lang=`); coin JSON serializes lookup fields as `{ id, code, name }`,
+      face value as `face_value` + `face_unit`, and accepts id/code/`{name}` on
+      create/update. API tests incl. resolve-or-create, units, localized names.
+- [ ] Import / export: add a top-level `lookups` section to JSON incl. currency
+      units (coins reference by code + unit code) for exact round-trips; CSV
+      export renders encoded fields as **localized display names** in the active
+      language (no code columns) and a face value with unit name (e.g. `50 øre`),
+      taking a `--lang`/`?lang=` parameter (default en). JSON round-trip test +
+      a CSV localization test (en vs nb).
+- [ ] Web: typed lookup API client + a reusable combo-box component (dropdown of
+      localized entries + free-text add) used for the five fields (country,
+      denomination, composition, mint, currency) in the coin form, plus a
+      face-value + unit control (unit combo scoped to the chosen currency);
+      localized value display across list/detail/summary; i18n keys. Typecheck +
+      build.
+- [ ] Update `postman/coins-db.postman_collection.json` (lookups + new coin JSON)
+      and refresh `review.md`. Update `samples/collection.sample.json` to the new
+      format and re-verify `scripts/seed.sh`.
