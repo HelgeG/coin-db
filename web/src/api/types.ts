@@ -2,17 +2,48 @@
 
 export type ImageKind = 'obverse' | 'reverse' | 'detail'
 
+/** The controlled-vocabulary kinds exposed under /lookups/:kind. */
+export type LookupKind = 'country' | 'denomination' | 'composition' | 'mint' | 'currency'
+
+/** All lookup kinds in display order (used to iterate/type-check). */
+export const lookupKinds: LookupKind[] = [
+  'country',
+  'denomination',
+  'composition',
+  'mint',
+  'currency',
+]
+
+/**
+ * A resolved lookup entry as returned by the server: a stable id + code plus a
+ * `name` already localized for the requested language. Currency units share the
+ * same shape.
+ */
+export interface LookupRef {
+  id: number
+  code: string
+  name: string
+}
+
+/**
+ * How an encoded field is sent back to the server on create/update. The server
+ * resolves an existing entry by `id` or `code`, or resolves-or-creates by
+ * `name` in the active language. `null` clears an optional field.
+ */
+export type LookupInput = { id: number } | { code: string } | { name: string } | null
+
 export interface Coin {
   id: number
-  country: string
-  denomination: string | null
+  country: LookupRef
+  denomination: LookupRef | null
   face_value: number | null
-  coin_currency: string | null
+  face_unit: LookupRef | null
+  currency: LookupRef | null
   year_from: number
   year_to: number
-  mint: string | null
+  mint: LookupRef | null
   mint_mark: string | null
-  composition: string | null
+  composition: LookupRef | null
   weight_g: number | null
   diameter_mm: number | null
   grade_scale: string | null
@@ -86,15 +117,16 @@ export interface CollectionSummary {
 
 /** Fields accepted when creating/updating a coin. */
 export interface CoinInput {
-  country: string
+  country: LookupInput
   year_from: number
   year_to: number
-  denomination?: string | null
+  denomination?: LookupInput
   face_value?: number | null
-  coin_currency?: string | null
-  mint?: string | null
+  face_unit?: LookupInput
+  currency?: LookupInput
+  mint?: LookupInput
   mint_mark?: string | null
-  composition?: string | null
+  composition?: LookupInput
   weight_g?: number | null
   diameter_mm?: number | null
   grade_scale?: string | null

@@ -210,6 +210,10 @@ textarea {
 .field {
   margin-bottom: 0.5rem;
 }
+/* The "Add new…" text input revealed under a lookup combo's <select>. */
+.lookup-new {
+  margin-top: 0.35rem;
+}
 
 .row {
   display: flex;

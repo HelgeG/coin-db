@@ -1,6 +1,8 @@
 #ifndef COINS_SUMMARY_SERVICE_HPP
 #define COINS_SUMMARY_SERVICE_HPP
 
+#include <string_view>
+
 #include "coins/collection_summary.hpp"
 #include "coins/summary_type.hpp"
 
@@ -19,8 +21,10 @@ class SummaryService {
   /// Builds a `CollectionSummary`: the coin count, the EUR total of each coin's
   /// latest estimate (always computed), and the selected `type`'s breakdown
   /// buckets. Buckets are sorted by descending count then label; `TotalValue`
-  /// produces no buckets.
-  [[nodiscard]] CollectionSummary summarize(SummaryType type = kDefaultSummaryType);
+  /// produces no buckets. For lookup-based breakdowns (by_country, by_metal) the
+  /// labels are the entries' display names in `lang` (English fallback).
+  [[nodiscard]] CollectionSummary summarize(SummaryType type = kDefaultSummaryType,
+                                            std::string_view lang = "en");
 
  private:
   db::Database& db_;

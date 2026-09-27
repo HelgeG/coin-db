@@ -19,9 +19,11 @@ using coins::db::SqliteReferenceLinkRepository;
 
 // Inserts a minimal coin directly and returns its id (links need a valid FK).
 Id insert_coin(Database& db) {
+  // country_id references a seeded lookup entry (FK is enforced).
   coins::db::Statement stmt = db.prepare(
-      "INSERT INTO coin (country, year_from, year_to, created_at, updated_at) "
-      "VALUES ('Norway', 1963, 1963, '2026-01-01', '2026-01-01');");
+      "INSERT INTO coin (country_id, year_from, year_to, created_at, updated_at) "
+      "SELECT id, 1963, 1963, '2026-01-01', '2026-01-01' FROM lookup_entry "
+      "WHERE kind = 'country' LIMIT 1;");
   (void)stmt.step();
   return db.last_insert_rowid();
 }

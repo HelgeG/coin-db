@@ -73,9 +73,10 @@ Disable tests (e.g. for a lean release build) with `-DCOINS_BUILD_TESTS=OFF`.
 CLI=./build/build/Debug/cli/coins_cli
 $CLI --help                                  # command-line interface
 $CLI --data-dir mydata add --country Norway --year 1963 --denomination "50 Øre" \
-     --coin-currency NOK --grade-scale Norwegian --grade-label 1+
+     --currency NOK --face-value 50 --face-unit øre --grade-scale Norwegian --grade-label 1+
 $CLI --data-dir mydata estimate 1 --eur 120.50
 $CLI --data-dir mydata list
+$CLI --data-dir mydata lookups country --lang nb     # localized vocabulary
 $CLI --data-dir mydata summary
 $CLI --data-dir mydata export --format json --out backup.json
 

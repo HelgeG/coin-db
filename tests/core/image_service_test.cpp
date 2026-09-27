@@ -67,9 +67,11 @@ class ImageServiceTest : public ::testing::Test {
   }
 
   Id insert_coin() {
+    // country_id references a seeded lookup entry (FK is enforced).
     coins::db::Statement stmt = db_.prepare(
-        "INSERT INTO coin (country, year_from, year_to, created_at, updated_at) "
-        "VALUES ('Norway', 1963, 1963, '2026-01-01', '2026-01-01');");
+        "INSERT INTO coin (country_id, year_from, year_to, created_at, updated_at) "
+        "SELECT id, 1963, 1963, '2026-01-01', '2026-01-01' FROM lookup_entry "
+        "WHERE kind = 'country' LIMIT 1;");
     (void)stmt.step();
     return db_.last_insert_rowid();
   }

@@ -12,8 +12,11 @@
 #include "coins/db/database.hpp"
 #include "coins/db/schema.hpp"
 #include "coins/db/sqlite_coin_repository.hpp"
+#include "coins/db/sqlite_lookup_repository.hpp"
 #include "coins/db/sqlite_value_estimate_repository.hpp"
 #include "coins/id.hpp"
+#include "coins/lookup_kind.hpp"
+#include "coins/lookup_service.hpp"
 #include "coins/summary_type.hpp"
 #include "coins/value_estimate.hpp"
 
@@ -22,12 +25,15 @@ namespace {
 using coins::Coin;
 using coins::CollectionSummary;
 using coins::Id;
+using coins::LookupKind;
+using coins::LookupService;
 using coins::SummaryBucket;
 using coins::SummaryService;
 using coins::SummaryType;
 using coins::ValueEstimate;
 using coins::db::Database;
 using coins::db::SqliteCoinRepository;
+using coins::db::SqliteLookupRepository;
 using coins::db::SqliteValueEstimateRepository;
 
 class FixedClock final : public coins::IClock {
@@ -37,14 +43,24 @@ class FixedClock final : public coins::IClock {
 
 class SummaryServiceTest : public ::testing::Test {
  protected:
-  SummaryServiceTest() : db_(Database::in_memory()), coins_(db_, clock_), estimates_(db_) {
+  SummaryServiceTest()
+      : db_(Database::in_memory()),
+        coins_(db_, clock_),
+        estimates_(db_),
+        lookups_(db_),
+        lookup_service_(lookups_) {
     coins::db::bootstrap_schema(db_);
+  }
+
+  /// Resolves (creating if needed) a lookup entry's id by name in English.
+  Id lookup_id(LookupKind kind, const std::string& name) {
+    return lookup_service_.resolve_or_create(kind, "en", name).id;
   }
 
   /// Adds a bare Norway/1963 coin (used by the value-total tests).
   Id add_coin() {
     Coin coin;
-    coin.country = "Norway";
+    coin.country_id = lookup_id(LookupKind::Country, "Norway");
     coin.year_from = 1963;
     coin.year_to = 1963;
     const auto created = coins_.create(coin);
@@ -53,14 +69,17 @@ class SummaryServiceTest : public ::testing::Test {
   }
 
   /// Adds a coin with the attributes the breakdown tests group on. Empty
-  /// `grade`/`composition` are stored as NULL to exercise the null buckets.
-  Id add_coin(std::string country, int year, std::string grade, std::string composition) {
+  /// `grade`/`composition` stay unset to exercise the null buckets.
+  Id add_coin(const std::string& country, int year, const std::string& grade,
+              const std::string& composition) {
     Coin coin;
-    coin.country = std::move(country);
+    coin.country_id = lookup_id(LookupKind::Country, country);
     coin.year_from = year;
     coin.year_to = year;
-    if (!grade.empty()) coin.grade_label = std::move(grade);
-    if (!composition.empty()) coin.composition = std::move(composition);
+    if (!grade.empty()) coin.grade_label = grade;
+    if (!composition.empty()) {
+      coin.composition_id = lookup_id(LookupKind::Composition, composition);
+    }
     const auto created = coins_.create(coin);
     EXPECT_TRUE(created.has_value());
     return created->id;
@@ -78,6 +97,8 @@ class SummaryServiceTest : public ::testing::Test {
   FixedClock clock_;
   SqliteCoinRepository coins_;
   SqliteValueEstimateRepository estimates_;
+  SqliteLookupRepository lookups_;
+  LookupService lookup_service_;
 };
 
 TEST_F(SummaryServiceTest, EmptyCollectionIsAllZero) {

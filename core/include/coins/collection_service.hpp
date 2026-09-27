@@ -13,10 +13,13 @@
 #include "coins/coin_query.hpp"
 #include "coins/collection_io.hpp"
 #include "coins/collection_summary.hpp"
+#include "coins/currency_unit.hpp"
 #include "coins/db/database.hpp"
 #include "coins/fs_image_store.hpp"
 #include "coins/id.hpp"
 #include "coins/image.hpp"
+#include "coins/lookup_entry.hpp"
+#include "coins/lookup_kind.hpp"
 #include "coins/reference_link.hpp"
 #include "coins/validation.hpp"
 #include "coins/value_estimate.hpp"
@@ -74,11 +77,29 @@ class CollectionService {
   [[nodiscard]] std::filesystem::path resolve_image(std::string_view stored_path) const;
 
   // --- Summary & import/export -------------------------------------------
-  [[nodiscard]] CollectionSummary summary(SummaryType type = kDefaultSummaryType);
+  [[nodiscard]] CollectionSummary summary(SummaryType type = kDefaultSummaryType,
+                                          std::string_view lang = "en");
+
+  // --- Lookups (controlled vocabularies) ---------------------------------
+  /// Lists a vocabulary's entries for display in `lang`.
+  [[nodiscard]] std::vector<LookupEntry> lookups(LookupKind kind, std::string_view lang);
+  [[nodiscard]] std::optional<LookupEntry> lookup(Id id);
+  /// Resolves free text (code or localized name) to an entry, creating one when
+  /// no match exists (see LookupService::resolve_or_create).
+  [[nodiscard]] LookupEntry resolve_lookup(LookupKind kind, std::string_view lang,
+                                           std::string_view text);
+  /// Currency units: list, fetch, major unit, and resolve/create by code/name.
+  [[nodiscard]] std::vector<CurrencyUnit> currency_units(Id currency_id);
+  [[nodiscard]] std::optional<CurrencyUnit> currency_unit(Id unit_id);
+  [[nodiscard]] std::optional<CurrencyUnit> major_currency_unit(Id currency_id);
+  [[nodiscard]] CurrencyUnit resolve_currency_unit(Id currency_id, std::string_view lang,
+                                                   std::string_view text);
+
   [[nodiscard]] std::string export_json();
   [[nodiscard]] std::expected<ImportStats, ValidationErrors> import_json(
       std::string_view json_text);
-  [[nodiscard]] std::string export_csv();
+  /// CSV export with encoded fields rendered as localized names in `lang`.
+  [[nodiscard]] std::string export_csv(std::string_view lang = "en");
 
   /// Current date as an ISO 8601 string (used to default estimate dates).
   [[nodiscard]] std::string today() const;

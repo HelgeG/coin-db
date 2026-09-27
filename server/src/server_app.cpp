@@ -20,9 +20,12 @@
 #include "coins/coin_query.hpp"
 #include "coins/collection_service.hpp"
 #include "coins/collection_summary.hpp"
+#include "coins/currency_unit.hpp"
 #include "coins/id.hpp"
 #include "coins/image.hpp"
 #include "coins/json.hpp"
+#include "coins/lookup_entry.hpp"
+#include "coins/lookup_kind.hpp"
 #include "coins/reference_link.hpp"
 #include "coins/validation.hpp"
 #include "coins/value_estimate.hpp"
@@ -33,6 +36,16 @@ namespace {
 using json = nlohmann::json;
 using httplib::Request;
 using httplib::Response;
+
+// The active language for localized names. Read from a ?lang= query param,
+// defaulting to English (the fallback language).
+std::string lang_of(const Request& req) {
+  if (req.has_param("lang")) {
+    const std::string value = req.get_param_value("lang");
+    if (!value.empty()) return value;
+  }
+  return "en";
+}
 
 void respond(Response& res, int status, const json& body) {
   res.status = status;
@@ -89,6 +102,7 @@ SortField sort_field_from(const std::string& name) {
 
 CoinQuery query_from_request(const Request& req) {
   CoinQuery query;
+  query.lang = lang_of(req);
   if (req.has_param("country")) query.country = req.get_param_value("country");
   if (req.has_param("year_from")) query.year_from = to_int(req.get_param_value("year_from"));
   if (req.has_param("year_to")) query.year_to = to_int(req.get_param_value("year_to"));
@@ -141,6 +155,181 @@ json summary_to_json(const CollectionSummary& summary) {
                json{{"type", coins::to_string(summary.breakdown.type)}, {"buckets", buckets}}}};
 }
 
+// --- Localized, nested coin JSON ------------------------------------------
+//
+// The core `coin_to_json`/`coin_from_json` are id-based (used by import/export).
+// The REST server presents a *localized, nested* shape instead: each encoded
+// field serializes as {"id","code","name"} (localized) or null, and the face
+// value serializes as face_value + face_unit. These helpers live here so the
+// core json layer stays purely id-based.
+
+// Serializes a lookup entry id as {"id","code","name"} (localized), or null.
+json lookup_ref_json(CollectionService& service, std::optional<Id> id, std::string_view lang) {
+  if (!id) return nullptr;
+  const auto entry = service.lookup(*id);
+  if (!entry) return nullptr;
+  return json{{"id", entry->id}, {"code", entry->code}, {"name", entry->display_name(lang)}};
+}
+
+// Serializes a required lookup entry id (country), falling back to just the id
+// if the entry is somehow missing.
+json required_lookup_ref_json(CollectionService& service, Id id, std::string_view lang) {
+  const auto entry = service.lookup(id);
+  if (!entry) return json{{"id", id}, {"code", nullptr}, {"name", nullptr}};
+  return json{{"id", entry->id}, {"code", entry->code}, {"name", entry->display_name(lang)}};
+}
+
+// Serializes a currency unit id as {"id","code","name"} (localized), or null
+// (meaning the currency's major unit).
+json unit_ref_json(CollectionService& service, std::optional<Id> id, std::string_view lang) {
+  if (!id) return nullptr;
+  const auto unit = service.currency_unit(*id);
+  if (!unit) return nullptr;
+  return json{{"id", unit->id}, {"code", unit->code}, {"name", unit->display_name(lang)}};
+}
+
+template <typename T>
+json opt_json(const std::optional<T>& value) {
+  if (!value) return nullptr;
+  return json(*value);
+}
+
+// The localized coin response body (without child relations).
+json coin_response_json(CollectionService& service, const Coin& coin, std::string_view lang) {
+  return json{
+      {"id", coin.id},
+      {"country", required_lookup_ref_json(service, coin.country_id, lang)},
+      {"denomination", lookup_ref_json(service, coin.denomination_id, lang)},
+      {"currency", lookup_ref_json(service, coin.currency_id, lang)},
+      {"mint", lookup_ref_json(service, coin.mint_id, lang)},
+      {"composition", lookup_ref_json(service, coin.composition_id, lang)},
+      {"face_value", opt_json(coin.face_value)},
+      {"face_unit", unit_ref_json(service, coin.face_unit_id, lang)},
+      {"mint_mark", opt_json(coin.mint_mark)},
+      {"year_from", coin.year_from},
+      {"year_to", coin.year_to},
+      {"weight_g", opt_json(coin.weight_g)},
+      {"diameter_mm", opt_json(coin.diameter_mm)},
+      {"grade_scale", opt_json(coin.grade_scale)},
+      {"grade_numeric", opt_json(coin.grade_numeric)},
+      {"grade_label", opt_json(coin.grade_label)},
+      {"acquired_date", opt_json(coin.acquired_date)},
+      {"acquired_price_eur", opt_json(coin.acquired_price_eur)},
+      {"acquired_source", opt_json(coin.acquired_source)},
+      {"notes", opt_json(coin.notes)},
+      {"created_at", coin.created_at},
+      {"updated_at", coin.updated_at},
+  };
+}
+
+// Extracts the free-text handle for an encoded field from the request JSON.
+// Accepts a number (id), a string (code/name), or an object {"code":..} /
+// {"name":..}. Returns the text to resolve, or nullopt for a numeric id (handled
+// by the caller), or an absent/null field.
+std::optional<std::string> encoded_text(const json& value, std::optional<Id>& out_id) {
+  if (value.is_null()) return std::nullopt;
+  if (value.is_number_integer()) {
+    out_id = value.get<Id>();
+    return std::nullopt;
+  }
+  if (value.is_string()) {
+    return value.get<std::string>();
+  }
+  if (value.is_object()) {
+    if (value.contains("id") && value.at("id").is_number_integer()) {
+      out_id = value.at("id").get<Id>();
+      return std::nullopt;
+    }
+    if (value.contains("code") && value.at("code").is_string()) {
+      return value.at("code").get<std::string>();
+    }
+    if (value.contains("name") && value.at("name").is_string()) {
+      return value.at("name").get<std::string>();
+    }
+  }
+  return std::nullopt;
+}
+
+// Resolves an encoded field from the body into a lookup entry id. Sets `out`
+// (or leaves it untouched when the field is absent/null). A numeric id is used
+// directly; a string/object is resolved-or-created via the service.
+void resolve_field(CollectionService& service, const json& body, const char* key, LookupKind kind,
+                   std::string_view lang, std::optional<Id>& out) {
+  if (!body.contains(key)) return;
+  const json& value = body.at(key);
+  std::optional<Id> id;
+  const std::optional<std::string> text = encoded_text(value, id);
+  if (id) {
+    out = *id;
+    return;
+  }
+  if (text && !text->empty()) {
+    out = service.resolve_lookup(kind, lang, *text).id;
+    return;
+  }
+  if (value.is_null()) out = std::nullopt;
+}
+
+template <typename T>
+std::optional<T> read_opt(const json& body, const char* key) {
+  if (!body.contains(key) || body.at(key).is_null()) return std::nullopt;
+  return body.at(key).get<T>();
+}
+
+// Parses a coin from a create/update request body, resolving encoded fields
+// (and the face unit) to ids via the service. `country` is required.
+Coin coin_from_request(CollectionService& service, const json& body, std::string_view lang) {
+  Coin coin;
+
+  std::optional<Id> country_id;
+  resolve_field(service, body, "country", LookupKind::Country, lang, country_id);
+  coin.country_id = country_id.value_or(kUnsavedId);
+
+  resolve_field(service, body, "denomination", LookupKind::Denomination, lang,
+                coin.denomination_id);
+  resolve_field(service, body, "currency", LookupKind::Currency, lang, coin.currency_id);
+  resolve_field(service, body, "mint", LookupKind::Mint, lang, coin.mint_id);
+  resolve_field(service, body, "composition", LookupKind::Composition, lang, coin.composition_id);
+
+  coin.face_value = read_opt<double>(body, "face_value");
+
+  // face_unit is resolved within the coin's currency (major unit when absent).
+  if (coin.currency_id && body.contains("face_unit") && !body.at("face_unit").is_null()) {
+    const json& value = body.at("face_unit");
+    std::optional<Id> unit_id;
+    const std::optional<std::string> text = encoded_text(value, unit_id);
+    if (unit_id) {
+      coin.face_unit_id = *unit_id;
+    } else if (text && !text->empty()) {
+      coin.face_unit_id = service.resolve_currency_unit(*coin.currency_id, lang, *text).id;
+    }
+  }
+
+  coin.mint_mark = read_opt<std::string>(body, "mint_mark");
+  coin.year_from = body.value("year_from", 0);
+  coin.year_to = body.value("year_to", 0);
+  coin.weight_g = read_opt<double>(body, "weight_g");
+  coin.diameter_mm = read_opt<double>(body, "diameter_mm");
+  coin.grade_scale = read_opt<std::string>(body, "grade_scale");
+  coin.grade_numeric = read_opt<int>(body, "grade_numeric");
+  coin.grade_label = read_opt<std::string>(body, "grade_label");
+  coin.acquired_date = read_opt<std::string>(body, "acquired_date");
+  coin.acquired_price_eur = read_opt<double>(body, "acquired_price_eur");
+  coin.acquired_source = read_opt<std::string>(body, "acquired_source");
+  coin.notes = read_opt<std::string>(body, "notes");
+  return coin;
+}
+
+// {"id","code","name"} for a lookup entry, localized.
+json lookup_entry_json(const LookupEntry& entry, std::string_view lang) {
+  return json{{"id", entry.id}, {"code", entry.code}, {"name", entry.display_name(lang)}};
+}
+
+// {"id","code","name"} for a currency unit, localized.
+json currency_unit_json(const CurrencyUnit& unit, std::string_view lang) {
+  return json{{"id", unit.id}, {"code", unit.code}, {"name", unit.display_name(lang)}};
+}
+
 }  // namespace
 
 void register_routes(httplib::Server& server, CollectionService& service) {
@@ -159,9 +348,10 @@ void register_routes(httplib::Server& server, CollectionService& service) {
 
   // List / search.
   server.Get("/coins", [&service](const Request& req, Response& res) {
+    const CoinQuery query = query_from_request(req);
     json coins = json::array();
-    for (const Coin& coin : service.search(query_from_request(req))) {
-      coins.push_back(coin_to_json(coin));
+    for (const Coin& coin : service.search(query)) {
+      coins.push_back(coin_response_json(service, coin, query.lang));
     }
     respond(res, 200, coins);
   });
@@ -170,23 +360,25 @@ void register_routes(httplib::Server& server, CollectionService& service) {
   server.Post("/coins", [&service](const Request& req, Response& res) {
     const auto body = parse_body(req, res);
     if (!body) return;
-    const auto created = service.add_coin(coin_from_json(*body));
+    const std::string lang = lang_of(req);
+    const auto created = service.add_coin(coin_from_request(service, *body, lang));
     if (!created) {
       respond_validation(res, created.error());
       return;
     }
-    respond(res, 201, coin_to_json(*created));
+    respond(res, 201, coin_response_json(service, *created, lang));
   });
 
   // Get one, with relations.
   server.Get(R"(/coins/(\d+))", [&service](const Request& req, Response& res) {
     const Id id = path_id(req);
+    const std::string lang = lang_of(req);
     const auto coin = service.get_coin(id);
     if (!coin) {
       respond_error(res, 404, "coin not found");
       return;
     }
-    json body = coin_to_json(*coin);
+    json body = coin_response_json(service, *coin, lang);
     json estimates = json::array();
     for (const ValueEstimate& e : service.estimate_history(id)) {
       estimates.push_back(value_estimate_to_json(e));
@@ -210,7 +402,8 @@ void register_routes(httplib::Server& server, CollectionService& service) {
     const Id id = path_id(req);
     const auto body = parse_body(req, res);
     if (!body) return;
-    Coin coin = coin_from_json(*body);
+    const std::string lang = lang_of(req);
+    Coin coin = coin_from_request(service, *body, lang);
     coin.id = id;
     const auto updated = service.update_coin(coin);
     if (!updated) {
@@ -221,7 +414,7 @@ void register_routes(httplib::Server& server, CollectionService& service) {
       respond_error(res, 404, "coin not found");
       return;
     }
-    respond(res, 200, coin_to_json(*service.get_coin(id)));
+    respond(res, 200, coin_response_json(service, *service.get_coin(id), lang));
   });
 
   // Delete.
@@ -362,7 +555,9 @@ void register_routes(httplib::Server& server, CollectionService& service) {
 
   // Collection summary.
   server.Get("/summary", [&service](const Request& req, Response& res) {
-    // Unknown or missing ?type= falls back to the default summary.
+    // Unknown or missing ?type= falls back to the default summary. (?lang= is
+    // accepted for parity with the other endpoints; localized bucket labels are
+    // produced by the core summary layer.)
     coins::SummaryType type = coins::kDefaultSummaryType;
     if (req.has_param("type")) {
       if (const auto parsed = coins::summary_type_from_string(req.get_param_value("type"))) {
@@ -370,6 +565,85 @@ void register_routes(httplib::Server& server, CollectionService& service) {
       }
     }
     respond(res, 200, summary_to_json(service.summary(type)));
+  });
+
+  // List a vocabulary's entries, localized. :kind is one of the five lookup
+  // kinds; an unknown kind is a 404.
+  server.Get(R"(/lookups/([a-z]+))", [&service](const Request& req, Response& res) {
+    const auto kind = coins::lookup_kind_from_string(req.matches[1].str());
+    if (!kind) {
+      respond_error(res, 404, "unknown lookup kind");
+      return;
+    }
+    const std::string lang = lang_of(req);
+    json entries = json::array();
+    for (const LookupEntry& entry : service.lookups(*kind, lang)) {
+      entries.push_back(lookup_entry_json(entry, lang));
+    }
+    respond(res, 200, entries);
+  });
+
+  // Resolve-or-create a vocabulary entry from {"name":..} or {"code":..}.
+  server.Post(R"(/lookups/([a-z]+))", [&service](const Request& req, Response& res) {
+    const auto kind = coins::lookup_kind_from_string(req.matches[1].str());
+    if (!kind) {
+      respond_error(res, 404, "unknown lookup kind");
+      return;
+    }
+    const auto body = parse_body(req, res);
+    if (!body) return;
+    const std::string lang = lang_of(req);
+    std::string text;
+    if (body->contains("name") && body->at("name").is_string()) {
+      text = body->at("name").get<std::string>();
+    } else if (body->contains("code") && body->at("code").is_string()) {
+      text = body->at("code").get<std::string>();
+    }
+    if (text.empty()) {
+      respond_error(res, 400, "expected a non-empty 'name' or 'code'");
+      return;
+    }
+    const LookupEntry entry = service.resolve_lookup(*kind, lang, text);
+    respond(res, 201, lookup_entry_json(entry, lang));
+  });
+
+  // List a currency's units, localized.
+  server.Get(R"(/currencies/(\d+)/units)", [&service](const Request& req, Response& res) {
+    const Id currency_id = path_id(req);
+    if (!service.lookup(currency_id)) {
+      respond_error(res, 404, "currency not found");
+      return;
+    }
+    const std::string lang = lang_of(req);
+    json units = json::array();
+    for (const CurrencyUnit& unit : service.currency_units(currency_id)) {
+      units.push_back(currency_unit_json(unit, lang));
+    }
+    respond(res, 200, units);
+  });
+
+  // Resolve-or-create a currency unit from {"name":..}.
+  server.Post(R"(/currencies/(\d+)/units)", [&service](const Request& req, Response& res) {
+    const Id currency_id = path_id(req);
+    if (!service.lookup(currency_id)) {
+      respond_error(res, 404, "currency not found");
+      return;
+    }
+    const auto body = parse_body(req, res);
+    if (!body) return;
+    const std::string lang = lang_of(req);
+    std::string text;
+    if (body->contains("name") && body->at("name").is_string()) {
+      text = body->at("name").get<std::string>();
+    } else if (body->contains("code") && body->at("code").is_string()) {
+      text = body->at("code").get<std::string>();
+    }
+    if (text.empty()) {
+      respond_error(res, 400, "expected a non-empty 'name' or 'code'");
+      return;
+    }
+    const CurrencyUnit unit = service.resolve_currency_unit(currency_id, lang, text);
+    respond(res, 201, currency_unit_json(unit, lang));
   });
 
   // Export (JSON by default, ?format=csv for CSV).

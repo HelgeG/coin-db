@@ -6,6 +6,8 @@ import type {
   CollectionSummary,
   Image,
   ImageKind,
+  LookupKind,
+  LookupRef,
   ReferenceLink,
   SummaryType,
   ValueEstimate,
@@ -59,8 +61,12 @@ async function handle<T>(res: Response): Promise<T> {
   return data as T
 }
 
-function queryString(params: CoinSearchParams): string {
-  const search = new URLSearchParams()
+/** Builds a `?lang=…` query fragment, or an empty string when unset. */
+function langQuery(lang?: string): string {
+  return lang ? `?lang=${encodeURIComponent(lang)}` : ''
+}
+
+function queryString(params: CoinSearchParams): string {  const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue
     if (typeof value === 'boolean') {
@@ -121,5 +127,17 @@ export const api = {
   summary(type?: SummaryType): Promise<CollectionSummary> {
     const query = type ? `?type=${encodeURIComponent(type)}` : ''
     return request<CollectionSummary>('GET', `/summary${query}`)
+  },
+  listLookups(kind: LookupKind, lang?: string): Promise<LookupRef[]> {
+    return request<LookupRef[]>('GET', `/lookups/${kind}${langQuery(lang)}`)
+  },
+  createLookup(kind: LookupKind, name: string, lang?: string): Promise<LookupRef> {
+    return request<LookupRef>('POST', `/lookups/${kind}${langQuery(lang)}`, { name })
+  },
+  listCurrencyUnits(currencyId: number, lang?: string): Promise<LookupRef[]> {
+    return request<LookupRef[]>('GET', `/currencies/${currencyId}/units${langQuery(lang)}`)
+  },
+  createCurrencyUnit(currencyId: number, name: string, lang?: string): Promise<LookupRef> {
+    return request<LookupRef>('POST', `/currencies/${currencyId}/units${langQuery(lang)}`, { name })
   },
 }

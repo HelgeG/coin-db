@@ -13,7 +13,7 @@
         "url": { "raw": "{{base_url}}/coins", "host": ["{{base_url}}"], "path": ["coins"] },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"country\": \"Norway\",\n  \"year_from\": 1963,\n  \"year_to\": 1963,\n  \"denomination\": \"50 Øre\",\n  \"coin_currency\": \"NOK\",\n  \"face_value\": 0.5\n}"
+          "raw": "{\n  \"country\": \"Norway\",\n  \"year_from\": 1963,\n  \"year_to\": 1963,\n  \"denomination\": \"50 Øre\",\n  \"currency\": \"NOK\",\n  \"face_value\": 50,\n  \"face_unit\": \"øre\"\n}"
         }
       },
       "event": [
@@ -23,7 +23,8 @@
             "exec": [
               "pm.test('status is 201', () => pm.response.to.have.status(201));",
               "const body = pm.response.json();",
-              "pm.test('country echoed', () => pm.expect(body.country).to.eql('Norway'));",
+              "pm.test('country is a localized lookup ref', () => { pm.expect(body.country).to.be.an('object'); pm.expect(body.country.name).to.eql('Norway'); pm.expect(body.country.code).to.eql('NO'); });",
+              "pm.test('currency + face unit resolved', () => { pm.expect(body.currency.code).to.eql('NOK'); pm.expect(body.face_unit.name).to.eql('øre'); });",
               "pm.test('assigned an id', () => pm.expect(body.id).to.be.above(0));",
               "pm.environment.set('coin_id', body.id);"
             ],
@@ -158,6 +159,86 @@
               "pm.test('total reflects the estimate', () => pm.expect(body.total_estimate_eur).to.be.at.least(120.5));",
               "pm.test('echoes the selected breakdown type', () => pm.expect(body.breakdown.type).to.eql('by_country'));",
               "pm.test('breakdown has buckets', () => pm.expect(body.breakdown.buckets).to.be.an('array'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "List lookups (country, localized)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/lookups/country?lang=nb",
+          "host": ["{{base_url}}"],
+          "path": ["lookups", "country"],
+          "query": [{ "key": "lang", "value": "nb", "description": "en | nb" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('is an array of {id,code,name}', () => { pm.expect(body).to.be.an('array'); pm.expect(body[0]).to.have.keys(['id','code','name']); });",
+              "pm.test('Norway localized to Norge (nb)', () => pm.expect(body.some(e => e.code === 'NO' && e.name === 'Norge')).to.be.true);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create/resolve lookup (denomination)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/lookups/denomination",
+          "host": ["{{base_url}}"],
+          "path": ["lookups", "denomination"]
+        },
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Speciedaler\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+              "const body = pm.response.json();",
+              "pm.test('returns {id,code,name}', () => { pm.expect(body.id).to.be.above(0); pm.expect(body.name).to.eql('Speciedaler'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "List currency units (NOK)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/lookups/currency",
+          "host": ["{{base_url}}"],
+          "path": ["lookups", "currency"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const currencies = pm.response.json();",
+              "const nok = currencies.find(c => c.code === 'NOK');",
+              "pm.test('NOK exists', () => pm.expect(nok).to.be.an('object'));",
+              "pm.sendRequest({ url: pm.variables.replaceIn('{{base_url}}') + '/currencies/' + nok.id + '/units', method: 'GET' }, (err, res) => {",
+              "  pm.test('units listed for NOK', () => { const units = res.json(); pm.expect(units).to.be.an('array'); pm.expect(units.some(u => u.name === 'øre')).to.be.true; });",
+              "});"
             ],
             "type": "text/javascript"
           }

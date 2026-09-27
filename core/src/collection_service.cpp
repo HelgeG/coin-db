@@ -4,9 +4,11 @@
 
 #include "coins/db/schema.hpp"
 #include "coins/db/sqlite_coin_repository.hpp"
+#include "coins/db/sqlite_lookup_repository.hpp"
 #include "coins/db/sqlite_reference_link_repository.hpp"
 #include "coins/db/sqlite_value_estimate_repository.hpp"
 #include "coins/image_service.hpp"
+#include "coins/lookup_service.hpp"
 #include "coins/summary_service.hpp"
 
 namespace coins {
@@ -109,9 +111,49 @@ std::filesystem::path CollectionService::resolve_image(std::string_view stored_p
   return store_.resolve(stored_path);
 }
 
-CollectionSummary CollectionService::summary(SummaryType type) {
+CollectionSummary CollectionService::summary(SummaryType type, std::string_view lang) {
   SummaryService summary{db_};
-  return summary.summarize(type);
+  return summary.summarize(type, lang);
+}
+
+std::vector<LookupEntry> CollectionService::lookups(LookupKind kind, std::string_view lang) {
+  db::SqliteLookupRepository repo{db_};
+  LookupService service{repo};
+  return service.list(kind, lang);
+}
+
+std::optional<LookupEntry> CollectionService::lookup(Id id) {
+  db::SqliteLookupRepository repo{db_};
+  return repo.find_by_id(id);
+}
+
+LookupEntry CollectionService::resolve_lookup(LookupKind kind, std::string_view lang,
+                                              std::string_view text) {
+  db::SqliteLookupRepository repo{db_};
+  LookupService service{repo};
+  return service.resolve_or_create(kind, lang, text);
+}
+
+std::vector<CurrencyUnit> CollectionService::currency_units(Id currency_id) {
+  db::SqliteLookupRepository repo{db_};
+  return repo.list_units(currency_id);
+}
+
+std::optional<CurrencyUnit> CollectionService::currency_unit(Id unit_id) {
+  db::SqliteLookupRepository repo{db_};
+  return repo.find_unit_by_id(unit_id);
+}
+
+std::optional<CurrencyUnit> CollectionService::major_currency_unit(Id currency_id) {
+  db::SqliteLookupRepository repo{db_};
+  return repo.major_unit(currency_id);
+}
+
+CurrencyUnit CollectionService::resolve_currency_unit(Id currency_id, std::string_view lang,
+                                                      std::string_view text) {
+  db::SqliteLookupRepository repo{db_};
+  LookupService service{repo};
+  return service.resolve_or_create_unit(currency_id, lang, text);
 }
 
 std::string CollectionService::export_json() { return coins::export_json(db_); }
@@ -121,7 +163,9 @@ std::expected<ImportStats, ValidationErrors> CollectionService::import_json(
   return coins::import_json(db_, json_text);
 }
 
-std::string CollectionService::export_csv() { return coins::export_csv(db_); }
+std::string CollectionService::export_csv(std::string_view lang) {
+  return coins::export_csv(db_, lang);
+}
 
 std::string CollectionService::today() const {
   const std::string now = clock_.now_iso8601();

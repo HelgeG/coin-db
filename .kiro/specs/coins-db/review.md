@@ -43,9 +43,30 @@ passing; the web SPA typechecks and builds.
   immediate by design (confirmation is a UI concern). ✅
 
 ### Req 6 — Import / export
-- Export to JSON (full graph) and CSV (flattened + latest EUR). ✅
+- Export to JSON (full graph, with a self-contained `lookups` section so it
+  round-trips into a freshly-seeded database) and CSV. ✅
+- CSV renders the encoded fields (country, denomination, composition, mint,
+  currency, unit) as their **localized display name** in the active language
+  (no code columns); face value is shown with its unit. Takes a `--lang` /
+  `?lang=` parameter (default English). ✅
 - Import validates the whole graph first and runs in a single transaction, so a
-  bad file changes nothing. ✅ (see limitation below)
+  bad file changes nothing; the `lookups` section is resolved by code (reusing
+  seeded rows) and coin references are remapped. ✅ (see limitation below)
+
+### Req 8 — Encoded, localized field vocabularies
+- Country, denomination, composition, mint, and currency are shared, localized
+  `lookup_entry` rows referenced by id; `mint_mark` stays free text. ✅
+- Codes: country ISO 3166-1 alpha-2 (ISO 3166-3 for historical states —
+  Yugoslavia/Czechoslovakia/USSR seeded); currency ISO 4217 incl. historical
+  (DEM seeded); others app-generated. Country + currency seeded with en/nb names
+  (idempotent). ✅
+- Currencies have localized units (krone/øre, dollar/cent, …); a coin records
+  face value against an optional unit (major unit if unset) — "50 øre". Named
+  pieces use the optional denomination (Speciedaler, Skilling, Sovereign). ✅
+- Add-on-the-fly with case-insensitive per-language de-duplication; web combo
+  box; CLI accepts code-or-name with `--lang`; lookup-aware search and
+  `by_country`/`by_metal` summaries (grouped by entry, localized labels). ✅
+- Display falls back lang → English → any → code. ✅
 
 ### Domain rules & interfaces
 - Per-coin currency kept, never converted; estimates/acquisition in EUR;

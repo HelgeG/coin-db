@@ -13,13 +13,17 @@ using db::Statement;
 namespace {
 
 /// Runs a two-column `SELECT label, COUNT(*)` grouping query and collects the
-/// rows into buckets, rendering a NULL label as `null_label`. Buckets are then
-/// sorted by descending count, then by rendered label ascending — sorting in
-/// C++ (rather than SQL) keeps the ordering consistent for the substituted
-/// null-label buckets too.
+/// rows into buckets, rendering a NULL label as `null_label`. `lang` is bound to
+/// every `?` placeholder in `sql` (queries here use it 0 or more times for the
+/// localized-name join). Buckets are then sorted by descending count, then by
+/// rendered label ascending — sorting in C++ (rather than SQL) keeps the
+/// ordering consistent for the substituted null-label buckets too.
 void collect_label_counts(db::Database& db, const std::string& sql, std::vector<SummaryBucket>& out,
-                          std::string_view null_label) {
+                          std::string_view null_label, std::string_view lang, int lang_binds) {
   Statement stmt = db.prepare(sql);
+  for (int i = 1; i <= lang_binds; ++i) {
+    stmt.bind(i, lang);
+  }
   while (stmt.step()) {
     std::string label = stmt.column_opt_text(0).value_or(std::string(null_label));
     out.push_back({std::move(label), static_cast<int>(stmt.column_int64(1))});
@@ -34,16 +38,20 @@ void collect_label_counts(db::Database& db, const std::string& sql, std::vector<
   });
 }
 
-void fill_breakdown(db::Database& db, SummaryBreakdown& breakdown) {
+void fill_breakdown(db::Database& db, SummaryBreakdown& breakdown, std::string_view lang) {
   switch (breakdown.type) {
     case SummaryType::TotalValue:
       // Headline total only; no buckets.
       break;
     case SummaryType::ByCountry:
+      // Group by the country lookup entry; label with its localized name
+      // (falling back to the code). The `?` binds the active language.
       collect_label_counts(db,
-                           "SELECT country, COUNT(*) FROM coin "
-                           "GROUP BY country ORDER BY COUNT(*) DESC, country ASC;",
-                           breakdown.buckets, "(unknown)");
+                           "SELECT COALESCE(n.name, e.code) AS label, COUNT(*) FROM coin c "
+                           "JOIN lookup_entry e ON e.id = c.country_id "
+                           "LEFT JOIN lookup_name n ON n.entry_id = e.id AND n.lang = ? "
+                           "GROUP BY e.id ORDER BY COUNT(*) DESC, label ASC;",
+                           breakdown.buckets, "(unknown)", lang, 1);
       break;
     case SummaryType::ByDecade:
       // Group by decade of the coin's starting year, e.g. 1963 -> "1960s".
@@ -51,7 +59,7 @@ void fill_breakdown(db::Database& db, SummaryBreakdown& breakdown) {
                            "SELECT CAST((year_from / 10) * 10 AS TEXT) || 's', COUNT(*) FROM coin "
                            "GROUP BY (year_from / 10) * 10 "
                            "ORDER BY COUNT(*) DESC, (year_from / 10) * 10 ASC;",
-                           breakdown.buckets, "(unknown)");
+                           breakdown.buckets, "(unknown)", lang, 0);
       break;
     case SummaryType::ByGrade:
       // NULLIF collapses empty labels to NULL so they land in the "(ungraded)"
@@ -60,14 +68,17 @@ void fill_breakdown(db::Database& db, SummaryBreakdown& breakdown) {
                            "SELECT NULLIF(grade_label, ''), COUNT(*) FROM coin "
                            "GROUP BY NULLIF(grade_label, '') "
                            "ORDER BY COUNT(*) DESC, grade_label ASC;",
-                           breakdown.buckets, "(ungraded)");
+                           breakdown.buckets, "(ungraded)", lang, 0);
       break;
     case SummaryType::ByMetal:
+      // Group by the composition lookup entry; label with its localized name.
+      // Coins without a composition fall into the "(unknown)" bucket.
       collect_label_counts(db,
-                           "SELECT NULLIF(composition, ''), COUNT(*) FROM coin "
-                           "GROUP BY NULLIF(composition, '') "
-                           "ORDER BY COUNT(*) DESC, composition ASC;",
-                           breakdown.buckets, "(unknown)");
+                           "SELECT COALESCE(n.name, e.code) AS label, COUNT(*) FROM coin c "
+                           "LEFT JOIN lookup_entry e ON e.id = c.composition_id "
+                           "LEFT JOIN lookup_name n ON n.entry_id = e.id AND n.lang = ? "
+                           "GROUP BY c.composition_id ORDER BY COUNT(*) DESC, label ASC;",
+                           breakdown.buckets, "(unknown)", lang, 1);
       break;
   }
 }
@@ -76,7 +87,7 @@ void fill_breakdown(db::Database& db, SummaryBreakdown& breakdown) {
 
 SummaryService::SummaryService(db::Database& db) : db_(db) {}
 
-CollectionSummary SummaryService::summarize(SummaryType type) {
+CollectionSummary SummaryService::summarize(SummaryType type, std::string_view lang) {
   CollectionSummary summary;
   summary.breakdown.type = type;
 
@@ -101,7 +112,7 @@ CollectionSummary SummaryService::summarize(SummaryType type) {
     }
   }
 
-  fill_breakdown(db_, summary.breakdown);
+  fill_breakdown(db_, summary.breakdown, lang);
   return summary;
 }
 
