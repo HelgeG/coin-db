@@ -95,6 +95,12 @@ class CollectionService {
   [[nodiscard]] CurrencyUnit resolve_currency_unit(Id currency_id, std::string_view lang,
                                                    std::string_view text);
 
+  // --- Collection settings (base currency) -------------------------------
+  /// The collection's base currency (a `currency` lookup entry; defaults to EUR).
+  [[nodiscard]] std::optional<LookupEntry> base_currency();
+  /// Sets the base currency; returns false if `currency_id` is not a currency.
+  [[nodiscard]] bool set_base_currency(Id currency_id);
+
   [[nodiscard]] std::string export_json();
   [[nodiscard]] std::expected<ImportStats, ValidationErrors> import_json(
       std::string_view json_text);

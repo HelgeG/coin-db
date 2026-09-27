@@ -60,7 +60,7 @@ ValidationResult validate_coin(const Coin& coin) {
   require_non_negative(errors, coin.face_value, "face_value");
   require_non_negative(errors, coin.weight_g, "weight_g");
   require_non_negative(errors, coin.diameter_mm, "diameter_mm");
-  require_non_negative(errors, coin.acquired_price_eur, "acquired_price_eur");
+  require_non_negative(errors, coin.acquired_price, "acquired_price");
 
   // Grade validation is scale-aware. `grade_scale` is free text so any system
   // can be recorded; only the scales the core knows about are constrained, and
@@ -136,8 +136,8 @@ ValidationResult validate_reference_link(const ReferenceLink& link) {
 ValidationResult validate_value_estimate(const ValueEstimate& estimate) {
   ValidationErrors errors;
 
-  if (estimate.amount_eur < 0.0) {
-    errors.push_back({"amount_eur", "must not be negative"});
+  if (estimate.amount < 0.0) {
+    errors.push_back({"amount", "must not be negative"});
   }
   if (!is_iso_date(estimate.estimated_at)) {
     errors.push_back({"estimated_at", "must be an ISO 8601 date (YYYY-MM-DD)"});

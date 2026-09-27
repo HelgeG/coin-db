@@ -11,6 +11,11 @@ namespace coins::db {
 /// nothing new. Must run inside an open transaction (see `bootstrap_schema`).
 void seed_lookups(Database& db);
 
+/// Sets the collection base currency (`app_setting.base_currency_id`) to the EUR
+/// currency entry when it is not already set. Idempotent; assumes `seed_lookups`
+/// has run so the EUR entry exists. Must run inside an open transaction.
+void seed_base_currency(Database& db);
+
 }  // namespace coins::db
 
 #endif  // COINS_DB_SEED_HPP

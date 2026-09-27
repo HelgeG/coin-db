@@ -16,7 +16,7 @@ namespace {
 constexpr std::string_view kCoinColumns =
     "id, country_id, denomination_id, face_value, currency_id, face_unit_id, year_from, "
     "year_to, mint_id, mint_mark, composition_id, weight_g, diameter_mm, grade_scale, "
-    "grade_numeric, grade_label, acquired_date, acquired_price_eur, acquired_source, notes, "
+    "grade_numeric, grade_label, acquired_date, acquired_price, acquired_source, notes, "
     "created_at, updated_at";
 
 // Binds the 19 caller-supplied ("mutable") columns starting at bind index 1, in
@@ -40,7 +40,7 @@ int bind_mutable_columns(Statement& stmt, const Coin& coin) {
   stmt.bind(index++, coin.grade_numeric);
   stmt.bind(index++, coin.grade_label);
   stmt.bind(index++, coin.acquired_date);
-  stmt.bind(index++, coin.acquired_price_eur);
+  stmt.bind(index++, coin.acquired_price);
   stmt.bind(index++, coin.acquired_source);
   stmt.bind(index++, coin.notes);
   return index;
@@ -68,7 +68,7 @@ Coin map_row(Statement& stmt) {
   }
   coin.grade_label = stmt.column_opt_text(15);
   coin.acquired_date = stmt.column_opt_text(16);
-  coin.acquired_price_eur = stmt.column_opt_double(17);
+  coin.acquired_price = stmt.column_opt_double(17);
   coin.acquired_source = stmt.column_opt_text(18);
   coin.notes = stmt.column_opt_text(19);
   coin.created_at = stmt.column_text(20);
@@ -94,7 +94,7 @@ std::expected<Coin, ValidationErrors> SqliteCoinRepository::create(const Coin& i
   Statement stmt = db_.prepare(
       "INSERT INTO coin (country_id, denomination_id, face_value, currency_id, face_unit_id, "
       "year_from, year_to, mint_id, mint_mark, composition_id, weight_g, diameter_mm, "
-      "grade_scale, grade_numeric, grade_label, acquired_date, acquired_price_eur, "
+      "grade_scale, grade_numeric, grade_label, acquired_date, acquired_price, "
       "acquired_source, notes, created_at, updated_at) "
       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
   int index = bind_mutable_columns(stmt, coin);
@@ -166,11 +166,11 @@ std::vector<Coin> SqliteCoinRepository::search(const CoinQuery& query) {
     params.emplace_back("%" + *query.composition + "%");
   }
   if (query.min_value_eur.has_value()) {
-    conditions.emplace_back("le.amount_eur >= ?");
+    conditions.emplace_back("le.amount >= ?");
     params.emplace_back(*query.min_value_eur);
   }
   if (query.max_value_eur.has_value()) {
-    conditions.emplace_back("le.amount_eur <= ?");
+    conditions.emplace_back("le.amount <= ?");
     params.emplace_back(*query.max_value_eur);
   }
   if (query.text.has_value()) {
@@ -189,7 +189,7 @@ std::vector<Coin> SqliteCoinRepository::search(const CoinQuery& query) {
 
   // Join each coin to its latest estimate so value filters/sorting can use it.
   std::string sql = "SELECT " + std::string{kCoinColumns} +
-                    " FROM coin c LEFT JOIN (SELECT coin_id, amount_eur, ROW_NUMBER() OVER "
+                    " FROM coin c LEFT JOIN (SELECT coin_id, amount, ROW_NUMBER() OVER "
                     "(PARTITION BY coin_id ORDER BY estimated_at DESC, id DESC) AS rn "
                     "FROM value_estimate) le ON le.coin_id = c.id AND le.rn = 1";
   for (std::size_t i = 0; i < conditions.size(); ++i) {
@@ -216,7 +216,7 @@ std::vector<Coin> SqliteCoinRepository::search(const CoinQuery& query) {
       break;
     case SortField::ValueEur:
       // NULLs (no estimate) always sort last, regardless of direction.
-      sql += "le.amount_eur IS NULL, le.amount_eur" + direction;
+      sql += "le.amount IS NULL, le.amount" + direction;
       break;
     case SortField::DateAdded:
       sql += "c.created_at" + direction;
@@ -246,7 +246,7 @@ std::expected<bool, ValidationErrors> SqliteCoinRepository::update(const Coin& i
       "UPDATE coin SET country_id = ?, denomination_id = ?, face_value = ?, currency_id = ?, "
       "face_unit_id = ?, year_from = ?, year_to = ?, mint_id = ?, mint_mark = ?, "
       "composition_id = ?, weight_g = ?, diameter_mm = ?, grade_scale = ?, grade_numeric = ?, "
-      "grade_label = ?, acquired_date = ?, acquired_price_eur = ?, acquired_source = ?, "
+      "grade_label = ?, acquired_date = ?, acquired_price = ?, acquired_source = ?, "
       "notes = ?, updated_at = ? WHERE id = ?;");
   int index = bind_mutable_columns(stmt, input);
   stmt.bind(index++, std::string_view{now});  // updated_at (created_at is preserved)

@@ -102,8 +102,8 @@ CollectionSummary SummaryService::summarize(SummaryType type, std::string_view l
     // Sum the latest estimate per coin. ROW_NUMBER picks the most recent row
     // (estimated_at, then id as tie-break) within each coin's estimates.
     Statement stmt = db_.prepare(
-        "SELECT COALESCE(SUM(amount_eur), 0.0) FROM ("
-        "  SELECT amount_eur, ROW_NUMBER() OVER "
+        "SELECT COALESCE(SUM(amount), 0.0) FROM ("
+        "  SELECT amount, ROW_NUMBER() OVER "
         "    (PARTITION BY coin_id ORDER BY estimated_at DESC, id DESC) AS rn"
         "  FROM value_estimate"
         ") WHERE rn = 1;");

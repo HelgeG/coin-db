@@ -47,7 +47,7 @@ using ValidationResult = std::expected<void, ValidationErrors>;
 /// a valid http(s) URL.
 [[nodiscard]] ValidationResult validate_reference_link(const ReferenceLink& link);
 
-/// Validates a value estimate: `amount_eur` must be non-negative and
+/// Validates a value estimate: `amount` must be non-negative and
 /// `estimated_at` must be an ISO 8601 date (YYYY-MM-DD).
 [[nodiscard]] ValidationResult validate_value_estimate(const ValueEstimate& estimate);
 

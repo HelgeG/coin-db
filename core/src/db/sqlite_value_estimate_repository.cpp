@@ -10,12 +10,12 @@ namespace coins::db {
 namespace {
 
 // Reads a value estimate from the current row of a SELECT with columns
-// (id, coin_id, amount_eur, estimated_at, source) in that order.
+// (id, coin_id, amount, estimated_at, source) in that order.
 ValueEstimate map_row(Statement& stmt) {
   ValueEstimate estimate;
   estimate.id = stmt.column_int64(0);
   estimate.coin_id = stmt.column_int64(1);
-  estimate.amount_eur = stmt.column_double(2);
+  estimate.amount = stmt.column_double(2);
   estimate.estimated_at = stmt.column_text(3);
   estimate.source = stmt.column_opt_text(4);
   return estimate;
@@ -32,10 +32,10 @@ std::expected<ValueEstimate, ValidationErrors> SqliteValueEstimateRepository::ad
   }
 
   Statement stmt = db_.prepare(
-      "INSERT INTO value_estimate (coin_id, amount_eur, estimated_at, source) "
+      "INSERT INTO value_estimate (coin_id, amount, estimated_at, source) "
       "VALUES (?, ?, ?, ?);");
   stmt.bind(1, estimate.coin_id);
-  stmt.bind(2, estimate.amount_eur);
+  stmt.bind(2, estimate.amount);
   stmt.bind(3, std::string_view{estimate.estimated_at});
   stmt.bind(4, estimate.source);
   (void)stmt.step();
@@ -48,7 +48,7 @@ std::expected<ValueEstimate, ValidationErrors> SqliteValueEstimateRepository::ad
 std::vector<ValueEstimate> SqliteValueEstimateRepository::list_for_coin(Id coin_id) {
   std::vector<ValueEstimate> estimates;
   Statement stmt = db_.prepare(
-      "SELECT id, coin_id, amount_eur, estimated_at, source FROM value_estimate "
+      "SELECT id, coin_id, amount, estimated_at, source FROM value_estimate "
       "WHERE coin_id = ? ORDER BY estimated_at ASC, id ASC;");
   stmt.bind(1, coin_id);
   while (stmt.step()) {
@@ -59,7 +59,7 @@ std::vector<ValueEstimate> SqliteValueEstimateRepository::list_for_coin(Id coin_
 
 std::optional<ValueEstimate> SqliteValueEstimateRepository::latest_for_coin(Id coin_id) {
   Statement stmt = db_.prepare(
-      "SELECT id, coin_id, amount_eur, estimated_at, source FROM value_estimate "
+      "SELECT id, coin_id, amount, estimated_at, source FROM value_estimate "
       "WHERE coin_id = ? ORDER BY estimated_at DESC, id DESC LIMIT 1;");
   stmt.bind(1, coin_id);
   if (!stmt.step()) {
