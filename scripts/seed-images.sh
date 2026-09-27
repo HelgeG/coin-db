@@ -5,7 +5,7 @@
 # data dir's managed image store and records the DB row).
 #
 # Run this AFTER scripts/seed.sh has imported the sample collection, so coins
-# 1, 2 and 3 exist. Safe to run against the demo/ data dir.
+# 1 and 2 exist. Safe to run against the demo/ data dir.
 #
 # Usage: scripts/seed-images.sh [DATA_DIR]
 #   DATA_DIR   target data directory (default: coins-data)
@@ -38,6 +38,5 @@ add 1 obverse coin1-obverse.png "Norway 50 Øre — obverse (placeholder)"
 add 1 reverse coin1-reverse.png "Norway 50 Øre — reverse (placeholder)"
 add 2 obverse coin2-obverse.png "1889-O Morgan Dollar — obverse (placeholder)"
 add 2 reverse coin2-reverse.png "1889-O Morgan Dollar — reverse (placeholder)"
-add 3 obverse coin3-obverse.png "Sweden 1 Krona — obverse (placeholder)"
 
-echo "Attached 5 sample images to coins in '$data_dir'."
+echo "Attached 4 sample images to coins in '$data_dir'."
