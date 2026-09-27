@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <format>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
@@ -232,11 +233,128 @@ std::string csv_opt_int(const std::optional<int>& value) {
   return value.has_value() ? std::to_string(*value) : std::string{};
 }
 
+// --- Lookups (self-contained export section) ------------------------------
+
+// Serializes every lookup entry (with per-language names) and every currency
+// unit into a top-level "lookups" object so the export is portable: coins keep
+// referencing entries by id, but import remaps those ids by (kind, code) so a
+// restore into a differently-seeded database still resolves correctly.
+json export_lookups(db::Database& db) {
+  json entries = json::array();
+  {
+    Statement stmt = db.prepare("SELECT id, kind, code FROM lookup_entry ORDER BY id;");
+    while (stmt.step()) {
+      const Id entry_id = stmt.column_int64(0);
+      json names = json::object();
+      Statement n = db.prepare("SELECT lang, name FROM lookup_name WHERE entry_id = ?;");
+      n.bind(1, entry_id);
+      while (n.step()) {
+        names[n.column_text(0)] = n.column_text(1);
+      }
+      entries.push_back(json{{"id", entry_id},
+                             {"kind", stmt.column_text(1)},
+                             {"code", stmt.column_text(2)},
+                             {"names", std::move(names)}});
+    }
+  }
+
+  json units = json::array();
+  {
+    Statement stmt = db.prepare(
+        "SELECT id, currency_id, code, minor_per_unit, is_major FROM currency_unit ORDER BY id;");
+    while (stmt.step()) {
+      const Id unit_id = stmt.column_int64(0);
+      json names = json::object();
+      Statement n = db.prepare("SELECT lang, name FROM currency_unit_name WHERE unit_id = ?;");
+      n.bind(1, unit_id);
+      while (n.step()) {
+        names[n.column_text(0)] = n.column_text(1);
+      }
+      units.push_back(json{{"id", unit_id},
+                           {"currency_id", stmt.column_int64(1)},
+                           {"code", stmt.column_text(2)},
+                           {"minor_per_unit", static_cast<int>(stmt.column_int64(3))},
+                           {"is_major", stmt.column_int64(4) != 0},
+                           {"names", std::move(names)}});
+    }
+  }
+  return json{{"entries", std::move(entries)}, {"units", std::move(units)}};
+}
+
+// Imports the "lookups" section, resolving each entry/unit by code (reusing
+// seeded rows), and returns maps from the exported ids to the ids in this DB.
+struct LookupIdMaps {
+  std::map<Id, Id> entry;
+  std::map<Id, Id> unit;
+};
+
+LookupIdMaps import_lookups(db::Database& db, const json& lookups) {
+  LookupIdMaps maps;
+  db::SqliteLookupRepository repo{db};
+
+  if (lookups.contains("entries") && lookups.at("entries").is_array()) {
+    for (const json& e : lookups.at("entries")) {
+      const auto kind = lookup_kind_from_string(e.value("kind", ""));
+      if (!kind) continue;
+      const std::string code = e.value("code", "");
+      LookupEntry entry;
+      if (auto existing = repo.find_by_code(*kind, code)) {
+        entry = *existing;
+      } else {
+        entry.kind = *kind;
+        entry.code = code;
+        if (e.contains("names") && e.at("names").is_object()) {
+          for (const auto& [lang, name] : e.at("names").items()) {
+            entry.names[lang] = name.get<std::string>();
+          }
+        }
+        entry = repo.create(entry);
+      }
+      maps.entry[e.value("id", Id{0})] = entry.id;
+    }
+  }
+
+  if (lookups.contains("units") && lookups.at("units").is_array()) {
+    for (const json& u : lookups.at("units")) {
+      const Id old_currency = u.value("currency_id", Id{0});
+      const auto it = maps.entry.find(old_currency);
+      if (it == maps.entry.end()) continue;
+      const Id currency_id = it->second;
+      const std::string code = u.value("code", "");
+      CurrencyUnit unit;
+      if (auto existing = repo.find_unit_by_code(currency_id, code)) {
+        unit = *existing;
+      } else {
+        unit.currency_id = currency_id;
+        unit.code = code;
+        unit.minor_per_unit = u.value("minor_per_unit", 1);
+        unit.is_major = u.value("is_major", false);
+        if (u.contains("names") && u.at("names").is_object()) {
+          for (const auto& [lang, name] : u.at("names").items()) {
+            unit.names[lang] = name.get<std::string>();
+          }
+        }
+        unit = repo.create_unit(unit);
+      }
+      maps.unit[u.value("id", Id{0})] = unit.id;
+    }
+  }
+  return maps;
+}
+
+// Remaps a coin's lookup references from exported ids to this DB's ids.
+[[nodiscard]] std::optional<Id> remap(const std::map<Id, Id>& m, const std::optional<Id>& id) {
+  if (!id.has_value()) return std::nullopt;
+  const auto it = m.find(*id);
+  return it == m.end() ? std::nullopt : std::optional<Id>{it->second};
+}
+
 }  // namespace
 
 std::string export_json(db::Database& db) {
   json root;
-  root["version"] = 1;
+  root["version"] = 2;
+  root["lookups"] = export_lookups(db);
   root["coins"] = json::array();
   for (const Coin& coin : read_coins(db)) {
     json coin_json = coin_to_json(coin);
@@ -348,12 +466,28 @@ std::expected<ImportStats, ValidationErrors> import_json(db::Database& db,
     return std::unexpected(std::move(errors));
   }
 
-  // All valid: insert atomically with ids preserved.
+  // All valid: insert atomically. First import the lookups section (resolving by
+  // code, reusing seeded rows) to build id maps, then remap each coin's lookup
+  // references so a restore works even into a differently-seeded database.
   db.execute("BEGIN;");
   try {
+    LookupIdMaps maps;
+    if (root.contains("lookups") && root.at("lookups").is_object()) {
+      maps = import_lookups(db, root.at("lookups"));
+    }
+
     ImportStats stats;
     for (const CoinGraph& graph : graphs) {
-      insert_coin(db, graph.coin);
+      Coin coin = graph.coin;
+      if (const auto id = remap(maps.entry, std::optional<Id>{coin.country_id})) {
+        coin.country_id = *id;
+      }
+      coin.denomination_id = remap(maps.entry, coin.denomination_id);
+      coin.currency_id = remap(maps.entry, coin.currency_id);
+      coin.mint_id = remap(maps.entry, coin.mint_id);
+      coin.composition_id = remap(maps.entry, coin.composition_id);
+      coin.face_unit_id = remap(maps.unit, coin.face_unit_id);
+      insert_coin(db, coin);
       ++stats.coins;
       for (const ValueEstimate& estimate : graph.estimates) {
         insert_estimate(db, estimate);

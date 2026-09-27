@@ -66,10 +66,9 @@ class CollectionIoTest : public ::testing::Test {
       return svc.resolve_or_create(kind, "en", name).id;
     };
 
-    // Only seeded lookup entries (countries + currencies) are referenced so the
-    // ids are reproduced identically in a freshly-seeded DB. (export_json does
-    // not yet carry a lookups section, so created entries would not round-trip.)
-    // Reference them by ISO code, which resolve_or_create matches directly.
+    // The export now carries a self-contained "lookups" section, so both
+    // seeded and user-created entries round-trip. This fixture uses seeded
+    // entries (by ISO code) for the byte-identical re-export assertion.
     Coin a;
     a.country_id = id_of(LookupKind::Country, "NO");
     a.year_from = 1963;
@@ -130,6 +129,41 @@ TEST_F(CollectionIoTest, JsonRoundTripReproducesCollection) {
   // Deterministic export ordered by id, with ids preserved, so a faithful
   // restore re-exports byte-for-byte identically.
   EXPECT_EQ(coins::export_json(fresh), exported);
+}
+
+TEST_F(CollectionIoTest, UserCreatedLookupsRoundTripViaLookupsSection) {
+  // A coin referencing a user-created (non-seeded) denomination must survive a
+  // round-trip into a fresh DB thanks to the self-contained lookups section.
+  SqliteLookupRepository lookups{db_};
+  LookupService svc{lookups};
+  SqliteCoinRepository coins{db_, clock_};
+  const Id denom = svc.resolve_or_create(LookupKind::Denomination, "en", "Speciedaler").id;
+
+  Coin c;
+  c.country_id = svc.resolve_or_create(LookupKind::Country, "en", "NO").id;
+  c.year_from = 1780;
+  c.year_to = 1780;
+  c.denomination_id = denom;
+  ASSERT_TRUE(coins.create(c).has_value());
+
+  const std::string exported = coins::export_json(db_);
+
+  Database fresh = Database::in_memory();
+  coins::db::bootstrap_schema(fresh);  // fresh DB has no "Speciedaler" seeded
+  const auto stats = coins::import_json(fresh, exported);
+  ASSERT_TRUE(stats.has_value());
+
+  // The imported coin's denomination resolves to a Speciedaler entry in the
+  // fresh DB (id remapped through the lookups section).
+  SqliteLookupRepository fresh_lookups{fresh};
+  const auto entry = fresh_lookups.find_by_name(LookupKind::Denomination, "en", "Speciedaler");
+  ASSERT_TRUE(entry.has_value());
+  SqliteCoinRepository fresh_coins{fresh, clock_};
+  bool found = false;
+  for (const Coin& coin : fresh_coins.list()) {
+    if (coin.denomination_id == entry->id) found = true;
+  }
+  EXPECT_TRUE(found);
 }
 
 TEST_F(CollectionIoTest, ImportRejectsInvalidGraphAndWritesNothing) {
