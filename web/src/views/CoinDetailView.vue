@@ -4,9 +4,12 @@ import { RouterLink, useRouter } from 'vue-router'
 
 import { api, ApiError, imageUrl } from '../api/client'
 import type { CoinDetail, ImageKind } from '../api/types'
+import { useI18n } from '../composables/useI18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+
+const { t, d, eur } = useI18n()
 
 const coinId = computed(() => Number(props.id))
 const coin = ref<CoinDetail | null>(null)
@@ -94,7 +97,7 @@ function onFileChange(event: Event): void {
 async function uploadImage(): Promise<void> {
   actionError.value = null
   if (!imageFile.value) {
-    actionError.value = 'Choose an image file first.'
+    actionError.value = t('coin.chooseFileFirst')
     return
   }
   try {
@@ -124,7 +127,7 @@ async function removeImage(id: number): Promise<void> {
 }
 
 async function deleteCoin(): Promise<void> {
-  if (!window.confirm('Delete this coin and its images?')) return
+  if (!window.confirm(t('coin.deleteConfirm'))) return
   try {
     await api.deleteCoin(coinId.value)
     await router.push('/')
@@ -138,96 +141,96 @@ onMounted(load)
 
 <template>
   <p v-if="error" class="error">{{ error }}</p>
-  <p v-else-if="loading || !coin" class="muted">Loading…</p>
+  <p v-else-if="loading || !coin" class="muted">{{ t('common.loading') }}</p>
 
   <template v-else>
     <div class="row" style="justify-content: space-between">
       <h1>{{ coin.country.name }} · {{ coin.year_from === coin.year_to ? coin.year_from : `${coin.year_from}–${coin.year_to}` }}</h1>
       <div class="actions">
-        <RouterLink :to="`/coins/${coin.id}/edit`" class="btn">Edit</RouterLink>
-        <button class="btn btn-danger" @click="deleteCoin">Delete</button>
+        <RouterLink :to="`/coins/${coin.id}/edit`" class="btn">{{ t('coin.edit') }}</RouterLink>
+        <button class="btn btn-danger" @click="deleteCoin">{{ t('coin.delete') }}</button>
       </div>
     </div>
 
     <p v-if="actionError" class="error">{{ actionError }}</p>
 
     <section class="panel">
-      <h2>Details</h2>
+      <h2>{{ t('coin.details') }}</h2>
       <dl class="definition">
-        <dt>Denomination</dt><dd>{{ coin.denomination?.name ?? '—' }}</dd>
-        <dt>Face value</dt><dd>{{ faceValueText }}</dd>
-        <dt>Mint</dt><dd>{{ coin.mint?.name ?? '—' }} {{ coin.mint_mark ?? '' }}</dd>
-        <dt>Composition</dt><dd>{{ coin.composition?.name ?? '—' }}</dd>
-        <dt>Weight / diameter</dt><dd>{{ coin.weight_g ?? '—' }} g / {{ coin.diameter_mm ?? '—' }} mm</dd>
-        <dt>Grade</dt><dd>{{ coin.grade_scale ?? '—' }} {{ coin.grade_numeric ?? '' }} {{ coin.grade_label ?? '' }}</dd>
-        <dt>Acquired</dt><dd>{{ coin.acquired_date ?? '—' }} {{ coin.acquired_price_eur != null ? `for €${coin.acquired_price_eur}` : '' }} {{ coin.acquired_source ?? '' }}</dd>
-        <dt>Notes</dt><dd>{{ coin.notes ?? '—' }}</dd>
+        <dt>{{ t('coin.denomination') }}</dt><dd>{{ coin.denomination?.name ?? '—' }}</dd>
+        <dt>{{ t('coin.faceValue') }}</dt><dd>{{ faceValueText }}</dd>
+        <dt>{{ t('coin.mint') }}</dt><dd>{{ coin.mint?.name ?? '—' }} {{ coin.mint_mark ?? '' }}</dd>
+        <dt>{{ t('coin.composition') }}</dt><dd>{{ coin.composition?.name ?? '—' }}</dd>
+        <dt>{{ t('coin.weightDiameter') }}</dt><dd>{{ coin.weight_g ?? '—' }} g / {{ coin.diameter_mm ?? '—' }} mm</dd>
+        <dt>{{ t('coin.grade') }}</dt><dd>{{ coin.grade_scale ?? '—' }} {{ coin.grade_numeric ?? '' }} {{ coin.grade_label ?? '' }}</dd>
+        <dt>{{ t('coin.acquired') }}</dt><dd>{{ coin.acquired_date ? d(coin.acquired_date) : '—' }} {{ coin.acquired_price_eur != null ? t('coin.acquiredForPrice', { price: eur(coin.acquired_price_eur) }) : '' }} {{ coin.acquired_source ?? '' }}</dd>
+        <dt>{{ t('coin.notes') }}</dt><dd>{{ coin.notes ?? '—' }}</dd>
       </dl>
     </section>
 
     <section class="panel">
-      <h2>Value estimates (EUR)</h2>
+      <h2>{{ t('coin.valueEstimates') }}</h2>
       <table>
-        <thead><tr><th>Date</th><th>Amount</th><th>Source</th></tr></thead>
+        <thead><tr><th>{{ t('coin.date') }}</th><th>{{ t('coin.amount') }}</th><th>{{ t('coin.source') }}</th></tr></thead>
         <tbody>
           <tr v-for="est in coin.value_estimates" :key="est.id">
-            <td>{{ est.estimated_at }}</td>
-            <td>{{ est.amount_eur.toFixed(2) }}</td>
+            <td>{{ d(est.estimated_at) }}</td>
+            <td>{{ eur(est.amount_eur) }}</td>
             <td>{{ est.source ?? '' }}</td>
           </tr>
-          <tr v-if="coin.value_estimates.length === 0"><td colspan="3" class="muted">No estimates yet.</td></tr>
+          <tr v-if="coin.value_estimates.length === 0"><td colspan="3" class="muted">{{ t('coin.noEstimates') }}</td></tr>
         </tbody>
       </table>
       <form class="row" style="margin-top: 0.75rem" @submit.prevent="addEstimate">
-        <div class="field"><label>Amount (EUR)</label><input v-model="estimateForm.amount_eur" type="number" step="0.01" required /></div>
-        <div class="field"><label>Date</label><input v-model="estimateForm.estimated_at" type="date" /></div>
-        <div class="field"><label>Source</label><input v-model="estimateForm.source" /></div>
-        <button type="submit" class="btn btn-primary">Add estimate</button>
+        <div class="field"><label>{{ t('coin.amountEur') }}</label><input v-model="estimateForm.amount_eur" type="number" step="0.01" required /></div>
+        <div class="field"><label>{{ t('coin.date') }}</label><input v-model="estimateForm.estimated_at" type="date" /></div>
+        <div class="field"><label>{{ t('coin.source') }}</label><input v-model="estimateForm.source" /></div>
+        <button type="submit" class="btn btn-primary">{{ t('coin.addEstimate') }}</button>
       </form>
     </section>
 
     <section class="panel">
-      <h2>Reference links</h2>
+      <h2>{{ t('coin.referenceLinks') }}</h2>
       <ul>
         <li v-for="link in coin.reference_links" :key="link.id">
           <a :href="link.url" target="_blank" rel="noopener">{{ link.label }}</a>
-          <button class="btn btn-danger" style="margin-left: 0.5rem" @click="removeLink(link.id)">Remove</button>
+          <button class="btn btn-danger" style="margin-left: 0.5rem" @click="removeLink(link.id)">{{ t('common.remove') }}</button>
         </li>
-        <li v-if="coin.reference_links.length === 0" class="muted">No links yet.</li>
+        <li v-if="coin.reference_links.length === 0" class="muted">{{ t('coin.noLinks') }}</li>
       </ul>
       <form class="row" @submit.prevent="addLink">
-        <div class="field"><label>Label</label><input v-model="linkForm.label" required /></div>
-        <div class="field" style="flex: 1"><label>URL</label><input v-model="linkForm.url" required /></div>
-        <button type="submit" class="btn btn-primary">Add link</button>
+        <div class="field"><label>{{ t('coin.label') }}</label><input v-model="linkForm.label" required /></div>
+        <div class="field" style="flex: 1"><label>{{ t('coin.url') }}</label><input v-model="linkForm.url" required /></div>
+        <button type="submit" class="btn btn-primary">{{ t('coin.addLink') }}</button>
       </form>
     </section>
 
     <section class="panel">
-      <h2>Images</h2>
-      <div v-if="coin.images.length === 0" class="muted">No images yet.</div>
+      <h2>{{ t('coin.images') }}</h2>
+      <div v-if="coin.images.length === 0" class="muted">{{ t('coin.noImages') }}</div>
       <div class="image-grid">
         <figure v-for="image in coin.images" :key="image.id" class="image-card">
-          <img :src="imageUrl(image.id)" :alt="image.caption ?? image.kind ?? 'coin image'" />
+          <img :src="imageUrl(image.id)" :alt="image.caption ?? image.kind ?? t('coin.kind.image')" />
           <figcaption>
-            <span>{{ image.kind ?? 'image' }}</span>
+            <span>{{ image.kind ?? t('coin.kind.image') }}</span>
             <span v-if="image.caption" class="muted"> · {{ image.caption }}</span>
-            <button class="btn btn-danger" @click="removeImage(image.id)">Remove</button>
+            <button class="btn btn-danger" @click="removeImage(image.id)">{{ t('common.remove') }}</button>
           </figcaption>
         </figure>
       </div>
       <form class="row" @submit.prevent="uploadImage">
-        <div class="field"><label>File</label><input type="file" accept="image/*" @change="onFileChange" /></div>
+        <div class="field"><label>{{ t('coin.file') }}</label><input type="file" accept="image/*" @change="onFileChange" /></div>
         <div class="field">
-          <label>Kind</label>
+          <label>{{ t('coin.kind') }}</label>
           <select v-model="imageForm.kind">
-            <option value="">(unspecified)</option>
-            <option value="obverse">Obverse</option>
-            <option value="reverse">Reverse</option>
-            <option value="detail">Detail</option>
+            <option value="">{{ t('coin.kind.unspecified') }}</option>
+            <option value="obverse">{{ t('coin.kind.obverse') }}</option>
+            <option value="reverse">{{ t('coin.kind.reverse') }}</option>
+            <option value="detail">{{ t('coin.kind.detail') }}</option>
           </select>
         </div>
-        <div class="field"><label>Caption</label><input v-model="imageForm.caption" /></div>
-        <button type="submit" class="btn btn-primary">Upload</button>
+        <div class="field"><label>{{ t('coin.caption') }}</label><input v-model="imageForm.caption" /></div>
+        <button type="submit" class="btn btn-primary">{{ t('coin.upload') }}</button>
       </form>
     </section>
   </template>

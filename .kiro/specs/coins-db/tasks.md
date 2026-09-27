@@ -230,3 +230,33 @@ entries referenced by id. Breaking schema/API/export change with a DB migration
 - [x] Update `postman/coins-db.postman_collection.json` (lookups + new coin JSON)
       and refresh `review.md`. Update `samples/collection.sample.json` to the new
       format and re-verify `scripts/seed.sh`.
+
+## Phase 13 — Web UI localization hardening (Req 9)
+
+Makes the hand-rolled web i18n complete, enforced, and correctly formatted
+(no new runtime dependency). Data-value localization (Req 8) is unchanged.
+
+- [ ] C — Split dictionaries: move message strings into per-area modules under
+      `web/src/i18n/messages/` (`app`, `nav`, `common`, `lookup`, `coin`,
+      `summary`, `settings`) and compose them into `en`/`nb`; keep
+      `availableLocales`. No behaviour change; typecheck + build stay green.
+- [ ] A1 — Typed keys + completeness guard: derive `MessageKey = keyof typeof en`,
+      type `t(key: MessageKey, params?)`, and declare each other locale as
+      `Record<MessageKey, string>` so a missing/extra translation is a `vue-tsc`
+      compile error (the enforcement mechanism — no test runner exists yet, and
+      the typed `Record` is a stronger, build-time guarantee). Keep the runtime
+      English fallback as a last resort.
+- [ ] B — Formatting + plurals: add `n(value, options?)`, `d(dateISO, options?)`,
+      and a EUR currency helper to `useI18n` using `Intl.*` keyed on the active
+      locale; extend `t()` to accept `{ one, other }` values selected by a `count`
+      param via `Intl.PluralRules`. Apply `n()`/`d()` to the EUR total in
+      SummaryView and to amounts/dates/`€price` in CoinDetailView.
+- [ ] A2 — Sweep hardcoded strings: route all user-facing text in
+      `CoinListView.vue` and `CoinDetailView.vue` through `t()` (titles, search
+      form labels + option labels, table headers, buttons, placeholders,
+      empty-state messages, the delete `confirm()` text, "Choose an image file
+      first"); add the new keys to `en` + `nb`. Exempt accent names and locale
+      self-labels.
+- [ ] Verify: `vue-tsc` typecheck (which now enforces key completeness) +
+      `vite build` pass; a manual language-switch check shows no residual English
+      in nb.

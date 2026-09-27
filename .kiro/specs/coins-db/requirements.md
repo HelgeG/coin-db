@@ -188,6 +188,28 @@ own face-value currency). Each other coin field is unchanged.
   grouping and filtering operate on the **entry** (so localized names of the same
   entry are never split), while results display the localized name.
 
+### 9. Complete, correctly-formatted UI localization (web app)
+
+As a collector using the web app, I want the whole interface — not just parts of
+it — shown correctly in my chosen language.
+
+- WHEN I switch language, THEN **all** user-facing interface text changes,
+  including every view (collection list, coin detail, forms, summary, settings),
+  table headers, form labels, buttons, placeholders, empty-state messages, and
+  confirmation prompts. (Data values are localized separately via Req 8; proper
+  names such as accent-color names and each language's own label are exempt.)
+- WHERE a translation is missing for the active language, THEN the app falls back
+  to English (never showing a raw key).
+- The set of translatable strings is **enforced to be complete**: it is not
+  possible to ship the app with a translation key that some supported language
+  lacks, and referring to a non-existent key is caught before release (a
+  build/type or test failure), not discovered at runtime.
+- WHEN numbers, monetary amounts, and dates are shown, THEN they are formatted
+  according to the active locale's conventions (e.g. decimal separators and date
+  order), rather than a fixed format.
+- WHERE a message depends on a count (e.g. "1 coin" vs "2 coins"), THEN the
+  correct singular/plural form for the active language is shown.
+
 ## Data Attributes (summary)
 
 | Attribute            | Notes                                             |

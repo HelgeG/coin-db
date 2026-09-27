@@ -4,9 +4,15 @@ import { onMounted, ref, watch } from 'vue'
 import { api } from '../api/client'
 import type { CollectionSummary, SummaryType } from '../api/types'
 import { summaryTypes } from '../api/types'
+import type { MessageKey } from '../i18n/messages'
 import { useI18n } from '../composables/useI18n'
 
-const { t } = useI18n()
+const { t, eur } = useI18n()
+
+/** The i18n key for a summary type's label (e.g. 'summary.type.by_country'). */
+function typeLabelKey(type: SummaryType): MessageKey {
+  return `summary.type.${type}` as MessageKey
+}
 
 const STORAGE_KEY = 'coins.summaryType'
 const DEFAULT_TYPE: SummaryType = 'by_country'
@@ -59,7 +65,7 @@ onMounted(load)
         <dt>{{ t('summary.coins') }}</dt>
         <dd>{{ summary ? summary.coin_count : '—' }}</dd>
         <dt>{{ t('summary.totalValue') }}</dt>
-        <dd>{{ summary ? summary.total_estimate_eur.toFixed(2) + ' EUR' : '—' }}</dd>
+        <dd>{{ summary ? eur(summary.total_estimate_eur) : '—' }}</dd>
       </dl>
     </section>
 
@@ -68,7 +74,7 @@ onMounted(load)
         <label for="summary-type">{{ t('summary.breakdown') }}</label>
         <select id="summary-type" v-model="selectedType">
           <option v-for="type in summaryTypes" :key="type" :value="type">
-            {{ t('summary.type.' + type) }}
+            {{ t(typeLabelKey(type)) }}
           </option>
         </select>
       </div>
@@ -79,7 +85,7 @@ onMounted(load)
         <table>
           <thead>
             <tr>
-              <th>{{ t('summary.type.' + selectedType) }}</th>
+              <th>{{ t(typeLabelKey(selectedType)) }}</th>
               <th>{{ t('summary.coins') }}</th>
             </tr>
           </thead>

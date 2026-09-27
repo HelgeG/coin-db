@@ -4,6 +4,9 @@ import { RouterLink } from 'vue-router'
 
 import { api } from '../api/client'
 import type { Coin, CoinSearchParams } from '../api/types'
+import { useI18n } from '../composables/useI18n'
+
+const { t } = useI18n()
 
 const form = reactive({
   country: '',
@@ -59,77 +62,77 @@ onMounted(load)
 </script>
 
 <template>
-  <h1>Collection</h1>
+  <h1>{{ t('collection.title') }}</h1>
 
   <form class="panel" @submit.prevent="load">
     <div class="form-grid">
       <div class="field">
-        <label for="f-text">Search</label>
-        <input id="f-text" v-model="form.text" placeholder="country, denomination, notes, links" />
+        <label for="f-text">{{ t('common.search') }}</label>
+        <input id="f-text" v-model="form.text" :placeholder="t('collection.searchPlaceholder')" />
       </div>
       <div class="field">
-        <label for="f-country">Country</label>
+        <label for="f-country">{{ t('collection.country') }}</label>
         <input id="f-country" v-model="form.country" />
       </div>
       <div class="field">
-        <label for="f-year-from">Year from</label>
+        <label for="f-year-from">{{ t('collection.yearFrom') }}</label>
         <input id="f-year-from" v-model="form.year_from" type="number" />
       </div>
       <div class="field">
-        <label for="f-year-to">Year to</label>
+        <label for="f-year-to">{{ t('collection.yearTo') }}</label>
         <input id="f-year-to" v-model="form.year_to" type="number" />
       </div>
       <div class="field">
-        <label for="f-denom">Denomination</label>
+        <label for="f-denom">{{ t('collection.denomination') }}</label>
         <input id="f-denom" v-model="form.denomination" />
       </div>
       <div class="field">
-        <label for="f-grade">Grade</label>
+        <label for="f-grade">{{ t('collection.grade') }}</label>
         <input id="f-grade" v-model="form.grade" />
       </div>
       <div class="field">
-        <label for="f-metal">Metal</label>
+        <label for="f-metal">{{ t('collection.metal') }}</label>
         <input id="f-metal" v-model="form.metal" />
       </div>
       <div class="field">
-        <label for="f-min">Min EUR</label>
+        <label for="f-min">{{ t('collection.minEur') }}</label>
         <input id="f-min" v-model="form.min_eur" type="number" step="0.01" />
       </div>
       <div class="field">
-        <label for="f-max">Max EUR</label>
+        <label for="f-max">{{ t('collection.maxEur') }}</label>
         <input id="f-max" v-model="form.max_eur" type="number" step="0.01" />
       </div>
       <div class="field">
-        <label for="f-sort">Sort by</label>
+        <label for="f-sort">{{ t('collection.sortBy') }}</label>
         <select id="f-sort" v-model="form.sort">
-          <option value="added">Date added</option>
-          <option value="year">Year</option>
-          <option value="country">Country</option>
-          <option value="value">Latest value</option>
+          <option value="added">{{ t('collection.sort.added') }}</option>
+          <option value="year">{{ t('collection.sort.year') }}</option>
+          <option value="country">{{ t('collection.sort.country') }}</option>
+          <option value="value">{{ t('collection.sort.value') }}</option>
         </select>
       </div>
       <div class="field">
-        <label for="f-desc">Descending</label>
+        <label for="f-desc">{{ t('collection.descending') }}</label>
         <input id="f-desc" v-model="form.desc" type="checkbox" />
       </div>
     </div>
     <div class="actions">
-      <button type="submit" class="btn btn-primary">Search</button>
+      <button type="submit" class="btn btn-primary">{{ t('common.search') }}</button>
     </div>
   </form>
 
   <p v-if="error" class="error">{{ error }}</p>
-  <p v-else-if="loading" class="muted">Loading…</p>
+  <p v-else-if="loading" class="muted">{{ t('common.loading') }}</p>
 
   <table v-else>
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Country</th>
-        <th>Year</th>
-        <th>Denomination</th>
-        <th>Currency</th>
-        <th>Composition</th>
+        <th>{{ t('collection.colId') }}</th>
+        <th>{{ t('collection.country') }}</th>
+        <th>{{ t('collection.colYear') }}</th>
+        <th>{{ t('collection.denomination') }}</th>
+        <th>{{ t('collection.colCurrency') }}</th>
+        <th>{{ t('collection.colComposition') }}</th>
       </tr>
     </thead>
     <tbody>
@@ -142,7 +145,7 @@ onMounted(load)
         <td>{{ coin.composition?.name ?? '' }}</td>
       </tr>
       <tr v-if="coins.length === 0">
-        <td colspan="6" class="muted">No coins match.</td>
+        <td colspan="6" class="muted">{{ t('collection.noMatch') }}</td>
       </tr>
     </tbody>
   </table>
