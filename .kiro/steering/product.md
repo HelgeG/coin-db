@@ -17,7 +17,8 @@ a multi-user or marketplace product.
 To replace ad-hoc notes/spreadsheets with a structured, searchable catalog that:
 - captures rich per-coin detail (origin, denomination, year, mint, composition,
   physical measurements, condition/grade),
-- tracks estimated value over time (in EUR) and acquisition details,
+- tracks estimated value over time (in the collection's base currency) and
+  acquisition details,
 - keeps images and external reference links organized alongside each coin,
 - reports collection totals and supports backup via export/import.
 
@@ -29,10 +30,11 @@ To replace ad-hoc notes/spreadsheets with a structured, searchable catalog that:
   (English/Norwegian), reused across coins and addable on the fly — including
   historical countries and currencies that no longer exist.
 - Attach reference links (URL + label) and images (copied into a managed store).
-- Add EUR value estimates as a retained history (never overwritten).
+- Add value estimates (in the collection's base currency) as a retained history
+  (never overwritten).
 - Search, filter, and sort the collection.
-- View collection summary: total estimated EUR value plus a per-country coin
-  count (how many coins from each country).
+- View collection summary: total estimated value (in the base currency) plus a
+  per-country coin count (how many coins from each country).
 - Export/import for backup and portability.
 
 ## Interfaces
@@ -54,7 +56,8 @@ Both are built on one shared core so behavior is consistent across interfaces.
 
 - Each coin has its own denomination currency (e.g. NOK, USD); face values are
   not converted between currencies.
-- All value estimates and acquisition prices are expressed in EUR.
+- All value estimates and acquisition prices are expressed in a single,
+  user-selectable collection base currency (defaults to EUR); no conversion.
 - Country and at least one year are required for every coin.
 - Value estimates are append-only history; the latest is the current value.
 - Coin grading is not tied to a single system: numeric scales (e.g. Sheldon) and

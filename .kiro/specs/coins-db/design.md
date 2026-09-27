@@ -12,7 +12,10 @@ Requirements are the source of truth. Core stack decisions are now confirmed
 - **Coin "currency"**: an attribute of the coin (its own denomination currency,
   e.g. NOK, USD, GBP). Stored per coin as a reference to a `currency` **lookup
   entry** (ISO 4217 code, localized name; current or historical).
-- **Value estimates**: always expressed in **EUR**. No per-estimate currency field.
+- **Value estimates & acquisition price**: expressed in a single, user-selectable
+  **collection base currency** (a `currency` lookup reference stored as a
+  collection setting; defaults to EUR). No per-estimate currency field and **no
+  conversion** — amounts are stored as entered and shown in the base currency.
 - **Images**: **copied into a managed store folder**; the DB stores the managed
   relative path, not the original external path.
 - **Database**: SQLite (single-file, portable, easy to back up).
@@ -128,16 +131,21 @@ coin
   grade_numeric     INTEGER              -- numeric scales (e.g. Sheldon 65)
   grade_label       TEXT                 -- symbolic grades (e.g. "MS", "VF", "1+", "0/01")
   acquired_date     TEXT                 -- ISO 8601 date
-  acquired_price_eur REAL                -- price paid, normalized to EUR
+  acquired_price    REAL                 -- price paid, in the collection base currency
   acquired_source   TEXT
   notes             TEXT
   created_at        TEXT      NOT NULL
   updated_at        TEXT      NOT NULL
 
+app_setting               -- collection-wide key/value settings
+  key   TEXT PRIMARY KEY               -- e.g. "base_currency_id"
+  value TEXT                           -- stringified value (currency lookup id)
+  -- The base currency is a reference to a currency `lookup_entry`, seeded to EUR.
+
 value_estimate            -- history retained; latest = most recent estimated_at
   id            INTEGER PK
   coin_id       INTEGER   FK -> coin(id) ON DELETE CASCADE
-  amount_eur    REAL      NOT NULL       -- always EUR
+  amount        REAL      NOT NULL       -- in the collection base currency
   estimated_at  TEXT      NOT NULL       -- ISO 8601 date
   source        TEXT                     -- how the estimate was derived
 
@@ -276,6 +284,10 @@ is a clean, breaking `user_version` bump:
   coin table with `*_id` columns and `face_unit_id`. Any pre-existing free-text
   data is not migrated (none exists); this trade-off is accepted per the resolved
   decision in requirements.md.
+- **v3** adds the `app_setting` table, renames `value_estimate.amount_eur` →
+  `amount` and `coin.acquired_price_eur` → `acquired_price`, and seeds
+  `base_currency_id` to the EUR currency entry. Again a clean, breaking bump (no
+  production data), per the base-currency resolved decision in requirements.md.
 
 ## Image Store
 
@@ -298,10 +310,25 @@ is a clean, breaking `user_version` bump:
   **unit** (`face_unit_id`); it is recorded in the natural denomination (e.g. "50
   øre") and is never converted between currencies. When the unit is omitted the
   value is the currency's major unit.
-- All monetary estimates and `acquired_price_eur` are stored in **EUR**.
-- The collection summary always reports the headline total estimated value in EUR
-  (latest estimate per coin) and, alongside it, one selectable **predefined
-  breakdown** (a combined view).
+- All value estimates and `acquired_price` are stored and shown in the
+  collection's **base currency** (see "Collection settings" below). No conversion
+  is performed; the stored number is exactly what the caller entered.
+- The collection summary always reports the headline total estimated value in the
+  base currency (latest estimate per coin) and, alongside it, one selectable
+  **predefined breakdown** (a combined view).
+
+### Collection settings (base currency)
+
+- A small `app_setting` key/value table holds collection-wide preferences. The
+  only entry today is `base_currency_id` — the id of a `currency` `lookup_entry`.
+- A `SettingsService` (core) reads/writes it: `base_currency()` returns the
+  current currency entry (seeding/defaulting to **EUR** on a fresh database) and
+  `set_base_currency(id)` changes it (validating that the id is a `currency`
+  entry). The `CollectionService` facade exposes these plus a convenience that
+  formats an amount with the base-currency name/code.
+- Because value estimates and acquisition prices are stored as plain numbers in
+  this one currency, changing the base currency **relabels** existing amounts
+  (it does not convert them); the UI notes this when offering the change.
 
 ### Predefined summaries
 
@@ -342,8 +369,8 @@ value sorting work off the current value.
   `composition` match a **lookup entry** — the query accepts an entry code (or
   id) and filters on the coin's `*_id`; `grade_label` is exact (`COLLATE
   NOCASE`); `year_from`/`year_to` (range overlap against each coin's range);
-  `min_value_eur`/`max_value_eur` (bound the latest estimate; coins without an
-  estimate are excluded when a bound is set).
+  `min_value_eur`/`max_value_eur` (bound the latest estimate, in the base
+  currency; coins without an estimate are excluded when a bound is set).
 - Free text (`text`): case-insensitive substring across the coin's localized
   lookup names (country/denomination joined via `lookup_name`), notes, and
   reference-link labels.
@@ -361,12 +388,14 @@ value sorting work off the current value.
 | GET    | /coins/{id}                   | Get coin with relations          |
 | PUT    | /coins/{id}                   | Update coin                      |
 | DELETE | /coins/{id}                   | Delete coin                      |
-| POST   | /coins/{id}/estimates         | Add EUR value estimate           |
+| POST   | /coins/{id}/estimates         | Add value estimate (base currency) |
 | POST   | /coins/{id}/links             | Add reference link               |
 | DELETE | /links/{id}                   | Remove reference link            |
 | POST   | /coins/{id}/images            | Upload image (multipart)         |
 | GET    | /images/{id}/file             | Serve image bytes                |
 | DELETE | /images/{id}                  | Remove image                     |
+| GET    | /settings                     | Read collection settings (base currency) |
+| PUT    | /settings                     | Update settings (e.g. base currency) |
 | GET    | /summary                      | Totals + a selectable breakdown  |
 |        |   ?type=by_country\|total_value | (default `by_country`)           |
 |        |         \|by_decade\|by_grade\|by_metal |                          |
@@ -404,11 +433,12 @@ coins list      [--country ...] [--year ...] [--min-eur ...] [--sort year|countr
 coins show      <id>
 coins update    <id> --field value ...
 coins delete    <id>            # prompts for confirmation
-coins estimate  <id> --eur <amount> [--date ...] [--source ...]
+coins estimate  <id> --amount <value> [--date ...] [--source ...]   # in the base currency
 coins link      <id> --label ... --url ...
 coins image     <id> --file <path> [--kind obverse|reverse|detail]
 coins summary   [--type by_country|total_value|by_decade|by_grade|by_metal]   # default by_country
 coins lookups   <kind> [--lang en|nb]         # list a vocabulary's entries
+coins base-currency [set <code|name>]         # show or set the collection base currency
 coins export    --out collection.json
 coins import    --in collection.json
 ```
@@ -432,7 +462,8 @@ option (default `en`).
   not reject a country or currency solely because it is not a current ISO code.
   Name de-duplication (case-insensitive per kind+language) is enforced by
   `LookupService` on create.
-- `value_estimate.amount_eur` and `acquired_price_eur` are numeric EUR amounts.
+- `value_estimate.amount` and `acquired_price` are non-negative amounts in the
+  collection base currency.
 - `reference_link.url` must parse as a valid URL.
 - Grade is scale-aware. `grade_scale` is free text so any system can be recorded
   (numeric or symbolic); the core validates the scales it knows: **Sheldon**
@@ -460,20 +491,23 @@ Decided in Phase 1, applied consistently:
 `coins::export_json` / `import_json` / `export_csv` (see `collection_io.hpp`):
 
 - **JSON export** serializes the full collection graph — a top-level `lookups`
-  section (all entries with codes + per-language names) plus each coin with its
+  section (all entries with codes + per-language names), the collection settings
+  (base currency, referenced by its currency `code`), plus each coin with its
   value estimates, reference links, and image rows. Coins reference lookups by
   `code` so the export is self-contained and portable. (Images referenced by
   `stored_path`; the image files are backed up separately by copying the store
   directory.)
 - **JSON import** first imports the `lookups` section (resolve-or-create by
-  `(kind, code)`), then validates every coin and child row and, if anything is
+  `(kind, code)`) and applies the settings (base currency by code), then
+  validates every coin and child row and, if anything is
   invalid, writes nothing and returns the aggregated errors (field paths like
   `coins[0].country`). Malformed JSON is reported as a validation error. On
   success, rows are inserted in a single transaction with their **original coin
   ids preserved**, so a restore reproduces the collection exactly and keeps image
   `stored_path`s (which embed the coin id) valid. A storage failure rolls back.
 - **CSV export** is a flattened, one-row-per-coin, human-readable view (coin
-  columns plus the latest EUR estimate and its date), with RFC-4180-style
+  columns plus the latest estimate and its date, in the base currency), with
+  RFC-4180-style
   quoting. Encoded fields (country, denomination, composition, mint, currency,
   currency unit) are written as their **localized display name in the active
   language** — no code columns. The face value is written together with its unit
@@ -533,5 +567,8 @@ static UI text and value formatting.
 - **C++ dependency manager**: Conan 2.
 - **Web frontend framework**: Vue 3 + Vite + TypeScript; Vite's static build is
   served by `coins_server`.
-- **Acquisition price**: stored in **EUR only** (`acquired_price_eur`). The original
-  paid currency is not retained; callers convert to EUR before recording.
+- **Value estimates & acquisition price**: stored in the collection's
+  user-selectable **base currency** (a `currency` lookup reference in
+  `app_setting.base_currency_id`, default EUR); columns `value_estimate.amount`
+  and `coin.acquired_price`. No conversion — amounts are stored as entered.
+  (Supersedes the earlier EUR-only decision.)

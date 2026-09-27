@@ -100,8 +100,9 @@
 ## Conventions
 
 - All DB access uses parameterized statements — never string interpolation.
-- Money: estimates and acquisition prices stored in EUR; coin face value keeps its
-  own currency and is not converted.
+- Money: value estimates and acquisition prices are stored in the collection's
+  user-selectable base currency (a `currency` lookup reference, defaults to EUR;
+  no conversion); coin face value keeps its own currency and is not converted.
 - Dates stored as ISO 8601 strings (TEXT).
 - Image writes are atomic (temp file + rename) into the managed store.
 - Import runs inside a single transaction to avoid partial corruption.
@@ -136,5 +137,6 @@ After any code change: build, then run relevant tests before presenting results.
 
 - Web frontend framework: **Vue 3 + Vite + TypeScript** (static build served by
   `coins_server`).
-- Acquisition price is stored in **EUR only**; the original paid currency is not
-  retained (callers convert to EUR before recording).
+- Value estimates and acquisition price are stored in a single, user-selectable
+  **collection base currency** (a `currency` lookup reference; defaults to EUR),
+  stored as a collection setting. No conversion; amounts are stored as entered.
