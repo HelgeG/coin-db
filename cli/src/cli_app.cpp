@@ -503,7 +503,7 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     const coins::SummaryType type =
         coins::summary_type_from_string(summary_type).value_or(coins::kDefaultSummaryType);
     auto service = CollectionService::from_data_dir(data_dir);
-    const CollectionSummary totals = service.summary(type);
+    const CollectionSummary totals = service.summary(type, lang);
     out << "Coins: " << totals.coin_count << "\n";
     out << std::format("Total estimated value: {:.2f} EUR\n", totals.total_estimate_eur);
 
