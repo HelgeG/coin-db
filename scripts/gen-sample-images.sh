@@ -50,6 +50,5 @@ emit_png "Norway 50 Ore"  "OBVERSE" "#2f5aa0" "#e8eef7" "$outdir/coin1-obverse.p
 emit_png "Norway 50 Ore"  "REVERSE" "#2f5aa0" "#e8eef7" "$outdir/coin1-reverse.png"
 emit_png "USA \$1 Morgan" "OBVERSE" "#b08828" "#fff6e0" "$outdir/coin2-obverse.png"
 emit_png "USA \$1 Morgan" "REVERSE" "#b08828" "#fff6e0" "$outdir/coin2-reverse.png"
-emit_png "Sweden 1 Krona" "OBVERSE" "#2a8f82" "#e2f5f1" "$outdir/coin3-obverse.png"
 
-echo "Done. Generated 5 placeholder images in samples/images/."
+echo "Done. Generated 4 placeholder images in samples/images/."
