@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "coins/clock.hpp"
@@ -10,9 +11,12 @@
 #include "coins/db/database.hpp"
 #include "coins/db/schema.hpp"
 #include "coins/db/sqlite_coin_repository.hpp"
+#include "coins/db/sqlite_lookup_repository.hpp"
 #include "coins/db/sqlite_reference_link_repository.hpp"
 #include "coins/db/sqlite_value_estimate_repository.hpp"
 #include "coins/id.hpp"
+#include "coins/lookup_kind.hpp"
+#include "coins/lookup_service.hpp"
 #include "coins/reference_link.hpp"
 #include "coins/value_estimate.hpp"
 
@@ -21,10 +25,13 @@ namespace {
 using coins::Coin;
 using coins::CoinQuery;
 using coins::Id;
+using coins::LookupKind;
+using coins::LookupService;
 using coins::SortDirection;
 using coins::SortField;
 using coins::db::Database;
 using coins::db::SqliteCoinRepository;
+using coins::db::SqliteLookupRepository;
 using coins::db::SqliteReferenceLinkRepository;
 using coins::db::SqliteValueEstimateRepository;
 
@@ -47,10 +54,17 @@ std::vector<Id> ids_of(const std::vector<Coin>& coins) {
 //   c2 Norway 1990  "10 Kroner" Silver  grade 01                  latest 50
 //   c3 Sweden 1950-1955 "1 Krona" Silver  notes "rare"            latest 300
 //   c4 USA    1889  "1 Dollar"  Silver  notes "Morgan"  (no estimate; link "Numista Morgan")
+// The encoded fields (country, denomination, composition) are stored as lookup
+// entries; search filters still match by their localized name (or code).
 class SqliteCoinSearchTest : public ::testing::Test {
  protected:
   SqliteCoinSearchTest()
-      : db_(Database::in_memory()), coins_(db_, clock_), estimates_(db_), links_(db_) {
+      : db_(Database::in_memory()),
+        lookups_(db_),
+        lookup_svc_(lookups_),
+        coins_(db_, clock_),
+        estimates_(db_),
+        links_(db_) {
     coins::db::bootstrap_schema(db_);
     c1_ = add_coin("Norway", 1963, 1963, "50 Øre", "Bronze", "1+", "gift from grandpa");
     c2_ = add_coin("Norway", 1990, 1990, "10 Kroner", "Silver", "01", std::nullopt);
@@ -69,15 +83,23 @@ class SqliteCoinSearchTest : public ::testing::Test {
     EXPECT_TRUE(links_.add(link).has_value());
   }
 
-  Id add_coin(std::string country, int year_from, int year_to,
+  Id lookup_id(LookupKind kind, std::string_view name) {
+    return lookup_svc_.resolve_or_create(kind, "en", name).id;
+  }
+
+  Id add_coin(std::string_view country, int year_from, int year_to,
               std::optional<std::string> denomination, std::optional<std::string> composition,
               std::optional<std::string> grade_label, std::optional<std::string> notes) {
     Coin coin;
-    coin.country = std::move(country);
+    coin.country_id = lookup_id(LookupKind::Country, country);
     coin.year_from = year_from;
     coin.year_to = year_to;
-    coin.denomination = std::move(denomination);
-    coin.composition = std::move(composition);
+    if (denomination.has_value()) {
+      coin.denomination_id = lookup_id(LookupKind::Denomination, *denomination);
+    }
+    if (composition.has_value()) {
+      coin.composition_id = lookup_id(LookupKind::Composition, *composition);
+    }
     if (grade_label.has_value()) {
       coin.grade_scale = "Norwegian";
       coin.grade_label = std::move(grade_label);
@@ -98,6 +120,8 @@ class SqliteCoinSearchTest : public ::testing::Test {
 
   Database db_;
   FixedClock clock_;
+  SqliteLookupRepository lookups_;
+  LookupService lookup_svc_;
   SqliteCoinRepository coins_;
   SqliteValueEstimateRepository estimates_;
   SqliteReferenceLinkRepository links_;

@@ -13,6 +13,14 @@ const coin = ref<CoinDetail | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+/** Localized face value: "50 øre", falling back to the currency name, then plain. */
+const faceValueText = computed(() => {
+  const c = coin.value
+  if (c == null || c.face_value == null) return '—'
+  const unitName = c.face_unit?.name ?? c.currency?.name ?? ''
+  return unitName ? `${c.face_value} ${unitName}` : String(c.face_value)
+})
+
 const estimateForm = reactive({ amount_eur: '', estimated_at: '', source: '' })
 const linkForm = reactive({ label: '', url: '' })
 const imageForm = reactive({ kind: '' as '' | ImageKind, caption: '' })
@@ -134,7 +142,7 @@ onMounted(load)
 
   <template v-else>
     <div class="row" style="justify-content: space-between">
-      <h1>{{ coin.country }} · {{ coin.year_from === coin.year_to ? coin.year_from : `${coin.year_from}–${coin.year_to}` }}</h1>
+      <h1>{{ coin.country.name }} · {{ coin.year_from === coin.year_to ? coin.year_from : `${coin.year_from}–${coin.year_to}` }}</h1>
       <div class="actions">
         <RouterLink :to="`/coins/${coin.id}/edit`" class="btn">Edit</RouterLink>
         <button class="btn btn-danger" @click="deleteCoin">Delete</button>
@@ -146,10 +154,10 @@ onMounted(load)
     <section class="panel">
       <h2>Details</h2>
       <dl class="definition">
-        <dt>Denomination</dt><dd>{{ coin.denomination ?? '—' }}</dd>
-        <dt>Face value</dt><dd>{{ coin.face_value ?? '—' }} {{ coin.coin_currency ?? '' }}</dd>
-        <dt>Mint</dt><dd>{{ coin.mint ?? '—' }} {{ coin.mint_mark ?? '' }}</dd>
-        <dt>Composition</dt><dd>{{ coin.composition ?? '—' }}</dd>
+        <dt>Denomination</dt><dd>{{ coin.denomination?.name ?? '—' }}</dd>
+        <dt>Face value</dt><dd>{{ faceValueText }}</dd>
+        <dt>Mint</dt><dd>{{ coin.mint?.name ?? '—' }} {{ coin.mint_mark ?? '' }}</dd>
+        <dt>Composition</dt><dd>{{ coin.composition?.name ?? '—' }}</dd>
         <dt>Weight / diameter</dt><dd>{{ coin.weight_g ?? '—' }} g / {{ coin.diameter_mm ?? '—' }} mm</dd>
         <dt>Grade</dt><dd>{{ coin.grade_scale ?? '—' }} {{ coin.grade_numeric ?? '' }} {{ coin.grade_label ?? '' }}</dd>
         <dt>Acquired</dt><dd>{{ coin.acquired_date ?? '—' }} {{ coin.acquired_price_eur != null ? `for €${coin.acquired_price_eur}` : '' }} {{ coin.acquired_source ?? '' }}</dd>

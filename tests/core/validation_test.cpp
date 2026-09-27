@@ -16,10 +16,11 @@ using coins::ReferenceLink;
 using coins::ValidationErrors;
 using coins::ValueEstimate;
 
-// A minimally valid coin: only the required fields set.
+// A minimally valid coin: only the required fields set. `country_id` references
+// a lookup entry, so any positive id is enough for shape-level validation.
 Coin make_valid_coin() {
   Coin coin;
-  coin.country = "Norway";
+  coin.country_id = 1;
   coin.year_from = 1963;
   coin.year_to = 1963;
   return coin;
@@ -36,15 +37,15 @@ TEST(ValidationTest, MinimalValidCoinPasses) {
 
 TEST(ValidationTest, MissingCountryFails) {
   Coin coin = make_valid_coin();
-  coin.country = "";
+  coin.country_id = 0;  // unset
   const auto result = coins::validate_coin(coin);
   ASSERT_FALSE(result.has_value());
   EXPECT_TRUE(has_error_for(result.error(), "country"));
 }
 
-TEST(ValidationTest, BlankCountryFails) {
+TEST(ValidationTest, NonPositiveCountryIdFails) {
   Coin coin = make_valid_coin();
-  coin.country = "   ";
+  coin.country_id = -1;
   const auto result = coins::validate_coin(coin);
   ASSERT_FALSE(result.has_value());
   EXPECT_TRUE(has_error_for(result.error(), "country"));
@@ -72,22 +73,6 @@ TEST(ValidationTest, YearRangePasses) {
   Coin coin = make_valid_coin();
   coin.year_from = 1980;
   coin.year_to = 1990;
-  EXPECT_TRUE(coins::validate_coin(coin).has_value());
-}
-
-TEST(ValidationTest, InvalidCurrencyShapeFails) {
-  for (const auto* bad : {"nok", "US", "US1", "NOKK"}) {
-    Coin coin = make_valid_coin();
-    coin.coin_currency = bad;
-    const auto result = coins::validate_coin(coin);
-    ASSERT_FALSE(result.has_value()) << "expected rejection for '" << bad << "'";
-    EXPECT_TRUE(has_error_for(result.error(), "coin_currency"));
-  }
-}
-
-TEST(ValidationTest, ValidCurrencyPasses) {
-  Coin coin = make_valid_coin();
-  coin.coin_currency = "NOK";
   EXPECT_TRUE(coins::validate_coin(coin).has_value());
 }
 
@@ -149,7 +134,7 @@ TEST(ValidationTest, UnknownScaleIsAcceptedAsIs) {
 }
 
 TEST(ValidationTest, CollectsAllErrors) {
-  Coin coin;  // empty country, zero years
+  Coin coin;  // unset country_id, zero years
   const auto result = coins::validate_coin(coin);
   ASSERT_FALSE(result.has_value());
   EXPECT_GE(result.error().size(), 2U);

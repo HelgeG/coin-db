@@ -80,6 +80,43 @@ TEST_F(CliAppTest, AddWithoutCountryFailsValidation) {
   EXPECT_NE(added.err.find("country"), std::string::npos);
 }
 
+TEST_F(CliAppTest, AddCountryByIsoCodeResolvesSeededEntry) {
+  // The country lookup accepts a code as well as a name; NO is the seeded ISO
+  // 3166-1 entry for Norway and displays as "Norway" in English.
+  const CliResult added = run({"add", "--country", "NO", "--year", "1963"});
+  EXPECT_EQ(added.code, 0);
+
+  const CliResult shown = run({"show", "1"});
+  EXPECT_EQ(shown.code, 0);
+  EXPECT_NE(shown.out.find("Country: Norway"), std::string::npos);
+}
+
+TEST_F(CliAppTest, FaceValueWithUnitRendersLocalizedUnit) {
+  // NOK is a seeded currency with krone/øre units; "ore" resolves to the øre
+  // unit, so the face value renders as "50 øre".
+  const CliResult added = run({"add", "--country", "Norway", "--year", "1963", "--currency", "NOK",
+                               "--face-value", "50", "--face-unit", "ore"});
+  EXPECT_EQ(added.code, 0);
+
+  const CliResult shown = run({"show", "1"});
+  EXPECT_EQ(shown.code, 0);
+  EXPECT_NE(shown.out.find("Face value: 50 øre"), std::string::npos);
+  EXPECT_NE(shown.out.find("Currency: "), std::string::npos);
+}
+
+TEST_F(CliAppTest, LookupsListsSeededCountry) {
+  const CliResult lookups = run({"lookups", "country"});
+  EXPECT_EQ(lookups.code, 0);
+  // Seeded ISO entry: code<TAB>name.
+  EXPECT_NE(lookups.out.find("NO\tNorway"), std::string::npos);
+}
+
+TEST_F(CliAppTest, LookupsUnknownKindFails) {
+  const CliResult lookups = run({"lookups", "bogus"});
+  EXPECT_EQ(lookups.code, 1);
+  EXPECT_NE(lookups.err.find("unknown lookup kind"), std::string::npos);
+}
+
 TEST_F(CliAppTest, DeletePromptAbortsOnNo) {
   ASSERT_EQ(run({"add", "--country", "Norway", "--year", "1963"}).code, 0);
 

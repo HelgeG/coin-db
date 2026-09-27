@@ -24,12 +24,21 @@ bool has_object(Database& db, std::string_view type, std::string_view name) {
   return stmt.column_int64(0) > 0;
 }
 
+// Returns the id of a seeded country lookup entry (any one), for use as a valid
+// `coin.country_id` foreign key.
+coins::Id any_country_id(Database& db) {
+  Statement stmt = db.prepare("SELECT id FROM lookup_entry WHERE kind = 'country' LIMIT 1;");
+  EXPECT_TRUE(stmt.step());
+  return stmt.column_int64(0);
+}
+
 // Inserts a minimal valid coin and returns its id.
 coins::Id insert_coin(Database& db, int year_from, int year_to) {
+  const coins::Id country_id = any_country_id(db);
   Statement stmt = db.prepare(
-      "INSERT INTO coin (country, year_from, year_to, created_at, updated_at) "
+      "INSERT INTO coin (country_id, year_from, year_to, created_at, updated_at) "
       "VALUES (?, ?, ?, ?, ?);");
-  stmt.bind(1, std::string_view{"Norway"});
+  stmt.bind(1, country_id);
   stmt.bind(2, year_from);
   stmt.bind(3, year_to);
   stmt.bind(4, std::string_view{"2026-01-01T00:00:00Z"});
@@ -42,12 +51,15 @@ TEST(SchemaTest, BootstrapCreatesAllTablesAndIndexes) {
   Database db = Database::in_memory();
   coins::db::bootstrap_schema(db);
 
-  for (const auto* table : {"coin", "value_estimate", "reference_link", "image"}) {
+  for (const auto* table : {"coin", "value_estimate", "reference_link", "image", "lookup_entry",
+                            "lookup_name", "currency_unit", "currency_unit_name"}) {
     EXPECT_TRUE(has_object(db, "table", table)) << "missing table: " << table;
   }
   for (const auto* index :
-       {"idx_coin_country", "idx_coin_years", "idx_coin_currency", "idx_value_estimate_coin",
-        "idx_reference_link_coin", "idx_image_coin"}) {
+       {"idx_coin_country", "idx_coin_denomination", "idx_coin_mint", "idx_coin_composition",
+        "idx_coin_currency", "idx_coin_years", "idx_value_estimate_coin", "idx_reference_link_coin",
+        "idx_image_coin", "idx_lookup_name_entry", "idx_lookup_name_resolve",
+        "idx_currency_unit_currency"}) {
     EXPECT_TRUE(has_object(db, "index", index)) << "missing index: " << index;
   }
 }
@@ -56,6 +68,7 @@ TEST(SchemaTest, RecordsSchemaVersion) {
   Database db = Database::in_memory();
   coins::db::bootstrap_schema(db);
   EXPECT_EQ(coins::db::read_schema_version(db), coins::db::kSchemaVersion);
+  EXPECT_EQ(coins::db::kSchemaVersion, 2);
 }
 
 TEST(SchemaTest, BootstrapIsIdempotent) {

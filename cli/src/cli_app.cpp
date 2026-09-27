@@ -14,8 +14,11 @@
 #include "coins/coin.hpp"
 #include "coins/coin_query.hpp"
 #include "coins/collection_service.hpp"
+#include "coins/currency_unit.hpp"
 #include "coins/id.hpp"
 #include "coins/image.hpp"
+#include "coins/lookup_entry.hpp"
+#include "coins/lookup_kind.hpp"
 #include "coins/reference_link.hpp"
 #include "coins/validation.hpp"
 #include "coins/value_estimate.hpp"
@@ -24,14 +27,18 @@ namespace coins::cli {
 namespace {
 
 // Optional coin fields shared by `add` and `update`. Bound to CLI11 std::optional
-// targets, so only options the user actually passes are engaged.
+// targets, so only options the user actually passes are engaged. The encoded
+// fields (country/denomination/currency/mint/composition) are captured as free
+// text — a code or a localized name — and resolved to lookup ids in the service
+// layer (see apply_options), using the active language.
 struct CoinFieldOptions {
   std::optional<std::string> country;
   std::optional<int> year;
   std::optional<int> year_to;
   std::optional<std::string> denomination;
   std::optional<double> face_value;
-  std::optional<std::string> coin_currency;
+  std::optional<std::string> currency;
+  std::optional<std::string> face_unit;
   std::optional<std::string> mint;
   std::optional<std::string> mint_mark;
   std::optional<std::string> composition;
@@ -47,15 +54,17 @@ struct CoinFieldOptions {
 };
 
 void add_coin_options(CLI::App* sub, CoinFieldOptions& o) {
-  sub->add_option("--country", o.country, "Country of origin (required)");
+  sub->add_option("--country", o.country, "Country of origin (code or name; required on add)");
   sub->add_option("--year", o.year, "Year, or start of a year range");
   sub->add_option("--year-to", o.year_to, "End of a year range");
-  sub->add_option("--denomination", o.denomination, "e.g. \"50 Øre\"");
+  sub->add_option("--denomination", o.denomination, "Named piece (code or name)");
   sub->add_option("--face-value", o.face_value, "Numeric face value");
-  sub->add_option("--coin-currency", o.coin_currency, "ISO 4217 code, e.g. NOK");
-  sub->add_option("--mint", o.mint);
+  sub->add_option("--currency", o.currency, "Currency (ISO 4217 code or name, e.g. NOK)");
+  sub->add_option("--face-unit", o.face_unit,
+                  "Currency unit for the face value (e.g. ore); major unit if omitted");
+  sub->add_option("--mint", o.mint, "Mint (code or name)");
   sub->add_option("--mint-mark", o.mint_mark);
-  sub->add_option("--composition", o.composition, "Metal/composition");
+  sub->add_option("--composition", o.composition, "Metal/composition (code or name)");
   sub->add_option("--weight", o.weight_g, "Weight in grams");
   sub->add_option("--diameter", o.diameter_mm, "Diameter in mm");
   sub->add_option("--grade-scale", o.grade_scale, "e.g. Sheldon, Norwegian");
@@ -67,19 +76,39 @@ void add_coin_options(CLI::App* sub, CoinFieldOptions& o) {
   sub->add_option("--notes", o.notes);
 }
 
-void apply_options(const CoinFieldOptions& o, Coin& coin) {
-  if (o.country) coin.country = *o.country;
+// Resolves the free-text encoded fields to lookup ids and applies every provided
+// option to `coin`. Resolution uses the active language and creates entries when
+// no match exists (resolve-or-create).
+void apply_options(const CoinFieldOptions& o, CollectionService& service, std::string_view lang,
+                   Coin& coin) {
+  if (o.country) {
+    coin.country_id = service.resolve_lookup(LookupKind::Country, lang, *o.country).id;
+  }
   if (o.year) {
     coin.year_from = *o.year;
     if (!o.year_to) coin.year_to = *o.year;
   }
   if (o.year_to) coin.year_to = *o.year_to;
-  if (o.denomination) coin.denomination = o.denomination;
+  if (o.denomination) {
+    coin.denomination_id =
+        service.resolve_lookup(LookupKind::Denomination, lang, *o.denomination).id;
+  }
   if (o.face_value) coin.face_value = o.face_value;
-  if (o.coin_currency) coin.coin_currency = o.coin_currency;
-  if (o.mint) coin.mint = o.mint;
+  if (o.currency) {
+    coin.currency_id = service.resolve_lookup(LookupKind::Currency, lang, *o.currency).id;
+  }
+  // A face unit is only meaningful within the coin's currency. Resolve it within
+  // whatever currency the coin now has; omitting it means the currency's major unit.
+  if (o.face_unit && coin.currency_id.has_value()) {
+    coin.face_unit_id = service.resolve_currency_unit(*coin.currency_id, lang, *o.face_unit).id;
+  }
+  if (o.mint) {
+    coin.mint_id = service.resolve_lookup(LookupKind::Mint, lang, *o.mint).id;
+  }
   if (o.mint_mark) coin.mint_mark = o.mint_mark;
-  if (o.composition) coin.composition = o.composition;
+  if (o.composition) {
+    coin.composition_id = service.resolve_lookup(LookupKind::Composition, lang, *o.composition).id;
+  }
   if (o.weight_g) coin.weight_g = o.weight_g;
   if (o.diameter_mm) coin.diameter_mm = o.diameter_mm;
   if (o.grade_scale) coin.grade_scale = o.grade_scale;
@@ -110,6 +139,37 @@ std::string year_text(const Coin& coin) {
   return std::to_string(coin.year_from) + "-" + std::to_string(coin.year_to);
 }
 
+// Localized display name of a lookup entry by id, or "" when unset/missing.
+std::string lookup_name(CollectionService& service, std::optional<Id> id, std::string_view lang) {
+  if (!id) return "";
+  const auto entry = service.lookup(*id);
+  return entry ? entry->display_name(lang) : "";
+}
+
+// Required-country display name (the id is never unset for a valid coin, but
+// fall back to "" defensively).
+std::string country_name(CollectionService& service, const Coin& coin, std::string_view lang) {
+  const auto entry = service.lookup(coin.country_id);
+  return entry ? entry->display_name(lang) : "";
+}
+
+// Renders a coin's face value as e.g. "50 øre" (value + unit name) when a unit
+// is present, else "0.5 <currency name>" using the currency, else just the
+// number, else "". Returns "" when there is no face value.
+std::string face_value_text(CollectionService& service, const Coin& coin, std::string_view lang) {
+  if (!coin.face_value) return "";
+  const std::string number = std::format("{}", *coin.face_value);
+  if (coin.face_unit_id) {
+    const auto unit = service.currency_unit(*coin.face_unit_id);
+    if (unit) return number + " " + unit->display_name(lang);
+  }
+  if (coin.currency_id) {
+    const std::string cur = lookup_name(service, coin.currency_id, lang);
+    if (!cur.empty()) return number + " " + cur;
+  }
+  return number;
+}
+
 void print_opt(std::ostream& out, std::string_view label, const std::optional<std::string>& v) {
   if (v.has_value()) out << "  " << label << ": " << *v << "\n";
 }
@@ -118,6 +178,10 @@ void print_opt(std::ostream& out, std::string_view label, const std::optional<do
 }
 void print_opt(std::ostream& out, std::string_view label, const std::optional<int>& v) {
   if (v.has_value()) out << "  " << label << ": " << *v << "\n";
+}
+// Prints a non-empty string field (used for resolved lookup names).
+void print_str(std::ostream& out, std::string_view label, const std::string& v) {
+  if (!v.empty()) out << "  " << label << ": " << v << "\n";
 }
 
 std::optional<std::string> read_file(const std::string& path) {
@@ -136,6 +200,10 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
   app.add_option("--data-dir", data_dir, "Data directory (database + image store)")
       ->capture_default_str();
 
+  std::string lang = "en";
+  app.add_option("--lang", lang, "Active language for vocabulary display/resolution (e.g. en, nb)")
+      ->capture_default_str();
+
   int result = 0;
 
   // --- add ----------------------------------------------------------------
@@ -145,7 +213,7 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
   add->callback([&] {
     auto service = CollectionService::from_data_dir(data_dir);
     Coin coin;
-    apply_options(add_opts, coin);
+    apply_options(add_opts, service, lang, coin);
     const auto created = service.add_coin(coin);
     if (!created) {
       print_validation(err, created.error());
@@ -160,12 +228,12 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
   CoinQuery query;
   std::string sort_name = "added";
   bool descending = false;
-  list->add_option("--country", query.country);
+  list->add_option("--country", query.country, "Country (code or name)");
   list->add_option("--year-from", query.year_from);
   list->add_option("--year-to", query.year_to);
-  list->add_option("--denomination", query.denomination);
+  list->add_option("--denomination", query.denomination, "Denomination (code or name)");
   list->add_option("--grade", query.grade_label);
-  list->add_option("--metal", query.composition, "Composition/metal substring");
+  list->add_option("--metal", query.composition, "Composition/metal (code or name)");
   list->add_option("--min-eur", query.min_value_eur);
   list->add_option("--max-eur", query.max_value_eur);
   list->add_option("--text", query.text, "Free-text search");
@@ -176,14 +244,16 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     auto service = CollectionService::from_data_dir(data_dir);
     query.sort_field = sort_field_from(sort_name);
     query.sort_direction = descending ? SortDirection::Descending : SortDirection::Ascending;
+    query.lang = lang;
     const std::vector<Coin> coins = service.search(query);
     out << std::format("{:>5}  {:<16} {:<10} {:<16} {:>12}\n", "ID", "Country", "Year",
                        "Denomination", "Latest EUR");
     for (const Coin& coin : coins) {
       const auto latest = service.latest_estimate(coin.id);
       const std::string eur = latest ? std::format("{:.2f}", latest->amount_eur) : "-";
-      out << std::format("{:>5}  {:<16} {:<10} {:<16} {:>12}\n", coin.id, coin.country,
-                         year_text(coin), coin.denomination.value_or(""), eur);
+      out << std::format("{:>5}  {:<16} {:<10} {:<16} {:>12}\n", coin.id,
+                         country_name(service, coin, lang), year_text(coin),
+                         lookup_name(service, coin.denomination_id, lang), eur);
     }
     out << coins.size() << " coin(s)\n";
   });
@@ -201,14 +271,14 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
       return;
     }
     out << "Coin " << coin->id << "\n";
-    out << "  Country: " << coin->country << "\n";
+    out << "  Country: " << country_name(service, *coin, lang) << "\n";
     out << "  Year: " << year_text(*coin) << "\n";
-    print_opt(out, "Denomination", coin->denomination);
-    print_opt(out, "Face value", coin->face_value);
-    print_opt(out, "Currency", coin->coin_currency);
-    print_opt(out, "Mint", coin->mint);
+    print_str(out, "Denomination", lookup_name(service, coin->denomination_id, lang));
+    print_str(out, "Face value", face_value_text(service, *coin, lang));
+    print_str(out, "Currency", lookup_name(service, coin->currency_id, lang));
+    print_str(out, "Mint", lookup_name(service, coin->mint_id, lang));
     print_opt(out, "Mint mark", coin->mint_mark);
-    print_opt(out, "Composition", coin->composition);
+    print_str(out, "Composition", lookup_name(service, coin->composition_id, lang));
     print_opt(out, "Weight (g)", coin->weight_g);
     print_opt(out, "Diameter (mm)", coin->diameter_mm);
     print_opt(out, "Grade scale", coin->grade_scale);
@@ -250,7 +320,7 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
       result = 1;
       return;
     }
-    apply_options(update_opts, *coin);
+    apply_options(update_opts, service, lang, *coin);
     const auto updated = service.update_coin(*coin);
     if (!updated) {
       print_validation(err, updated.error());
@@ -404,6 +474,24 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     }
   });
 
+  // --- lookups ------------------------------------------------------------
+  auto* lookups = app.add_subcommand("lookups", "List a vocabulary's entries (code<TAB>name)");
+  std::string lookups_kind;
+  lookups->add_option("kind", lookups_kind, "country|denomination|composition|mint|currency")
+      ->required();
+  lookups->callback([&] {
+    const auto kind = lookup_kind_from_string(lookups_kind);
+    if (!kind) {
+      err << "error: unknown lookup kind '" << lookups_kind << "'\n";
+      result = 1;
+      return;
+    }
+    auto service = CollectionService::from_data_dir(data_dir);
+    for (const LookupEntry& entry : service.lookups(*kind, lang)) {
+      out << entry.code << "\t" << entry.display_name(lang) << "\n";
+    }
+  });
+
   // --- summary ------------------------------------------------------------
   auto* summary = app.add_subcommand("summary", "Show collection totals");
   std::string summary_type = std::string(coins::to_string(coins::kDefaultSummaryType));
@@ -452,7 +540,7 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
   do_export->callback([&] {
     auto service = CollectionService::from_data_dir(data_dir);
     const std::string content =
-        export_format == "csv" ? service.export_csv() : service.export_json();
+        export_format == "csv" ? service.export_csv(lang) : service.export_json();
     if (export_out) {
       std::ofstream file(*export_out, std::ios::binary);
       if (!file) {

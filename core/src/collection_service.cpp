@@ -111,9 +111,9 @@ std::filesystem::path CollectionService::resolve_image(std::string_view stored_p
   return store_.resolve(stored_path);
 }
 
-CollectionSummary CollectionService::summary(SummaryType type) {
+CollectionSummary CollectionService::summary(SummaryType type, std::string_view lang) {
   SummaryService summary{db_};
-  return summary.summarize(type);
+  return summary.summarize(type, lang);
 }
 
 std::vector<LookupEntry> CollectionService::lookups(LookupKind kind, std::string_view lang) {

@@ -135,11 +135,11 @@ onMounted(load)
     <tbody>
       <tr v-for="coin in coins" :key="coin.id">
         <td><RouterLink :to="`/coins/${coin.id}`">{{ coin.id }}</RouterLink></td>
-        <td>{{ coin.country }}</td>
+        <td>{{ coin.country.name }}</td>
         <td>{{ yearText(coin) }}</td>
-        <td>{{ coin.denomination ?? '' }}</td>
-        <td>{{ coin.coin_currency ?? '' }}</td>
-        <td>{{ coin.composition ?? '' }}</td>
+        <td>{{ coin.denomination?.name ?? '' }}</td>
+        <td>{{ coin.currency?.name ?? '' }}</td>
+        <td>{{ coin.composition?.name ?? '' }}</td>
       </tr>
       <tr v-if="coins.length === 0">
         <td colspan="6" class="muted">No coins match.</td>

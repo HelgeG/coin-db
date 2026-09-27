@@ -12,6 +12,7 @@
 
 #include "coins/coin.hpp"
 #include "coins/image.hpp"
+#include "coins/lookup_kind.hpp"
 #include "coins/value_estimate.hpp"
 
 namespace {
@@ -19,6 +20,7 @@ namespace {
 using coins::Coin;
 using coins::CollectionService;
 using coins::ImageKind;
+using coins::LookupKind;
 
 std::filesystem::path unique_temp_dir(std::string_view prefix) {
   std::random_device rd;
@@ -43,7 +45,7 @@ class CollectionServiceTest : public ::testing::Test {
 
   Coin valid_coin() {
     Coin coin;
-    coin.country = "Norway";
+    coin.country_id = service_.resolve_lookup(LookupKind::Country, "en", "Norway").id;
     coin.year_from = 1963;
     coin.year_to = 1963;
     return coin;
@@ -62,11 +64,16 @@ class CollectionServiceTest : public ::testing::Test {
 };
 
 TEST_F(CollectionServiceTest, AddAndGetCoin) {
-  const auto created = service_.add_coin(valid_coin());
+  const Coin coin = valid_coin();
+  const auto created = service_.add_coin(coin);
   ASSERT_TRUE(created.has_value());
   const auto fetched = service_.get_coin(created->id);
   ASSERT_TRUE(fetched.has_value());
-  EXPECT_EQ(fetched->country, "Norway");
+  EXPECT_EQ(fetched->country_id, coin.country_id);
+  // The resolved country entry displays as "Norway" in English.
+  const auto entry = service_.lookup(fetched->country_id);
+  ASSERT_TRUE(entry.has_value());
+  EXPECT_EQ(entry->display_name("en"), "Norway");
 }
 
 TEST_F(CollectionServiceTest, DeleteCoinPurgesImageFilesAndRows) {

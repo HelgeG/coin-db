@@ -11,10 +11,13 @@
 #include "coins/db/database.hpp"
 #include "coins/db/schema.hpp"
 #include "coins/db/sqlite_coin_repository.hpp"
+#include "coins/db/sqlite_lookup_repository.hpp"
 #include "coins/db/sqlite_reference_link_repository.hpp"
 #include "coins/db/sqlite_value_estimate_repository.hpp"
 #include "coins/db/statement.hpp"
 #include "coins/id.hpp"
+#include "coins/lookup_kind.hpp"
+#include "coins/lookup_service.hpp"
 #include "coins/reference_link.hpp"
 #include "coins/value_estimate.hpp"
 
@@ -22,8 +25,11 @@ namespace {
 
 using coins::Coin;
 using coins::Id;
+using coins::LookupKind;
+using coins::LookupService;
 using coins::db::Database;
 using coins::db::SqliteCoinRepository;
+using coins::db::SqliteLookupRepository;
 using coins::db::SqliteReferenceLinkRepository;
 using coins::db::SqliteValueEstimateRepository;
 
@@ -50,18 +56,26 @@ class CollectionIoTest : public ::testing::Test {
  protected:
   CollectionIoTest() : db_(Database::in_memory()) {
     coins::db::bootstrap_schema(db_);
+    SqliteLookupRepository lookups{db_};
+    LookupService svc{lookups};
     SqliteCoinRepository coins{db_, clock_};
     SqliteValueEstimateRepository estimates{db_};
     SqliteReferenceLinkRepository links{db_};
 
+    auto id_of = [&](LookupKind kind, std::string_view name) {
+      return svc.resolve_or_create(kind, "en", name).id;
+    };
+
+    // Only seeded lookup entries (countries + currencies) are referenced so the
+    // ids are reproduced identically in a freshly-seeded DB. (export_json does
+    // not yet carry a lookups section, so created entries would not round-trip.)
+    // Reference them by ISO code, which resolve_or_create matches directly.
     Coin a;
-    a.country = "Norway";
+    a.country_id = id_of(LookupKind::Country, "NO");
     a.year_from = 1963;
     a.year_to = 1963;
-    a.denomination = "50 Øre";
-    a.coin_currency = "NOK";
+    a.currency_id = id_of(LookupKind::Currency, "NOK");
     a.face_value = 0.5;
-    a.composition = "Bronze";
     a.grade_scale = "Norwegian";
     a.grade_label = "1+";
     a.notes = "gift, with comma";
@@ -89,11 +103,10 @@ class CollectionIoTest : public ::testing::Test {
     insert_image_row(db_, a_id, "obverse", std::to_string(a_id) + "/front.png");
 
     Coin b;
-    b.country = "USA";
+    b.country_id = id_of(LookupKind::Country, "US");
     b.year_from = 1889;
     b.year_to = 1889;
-    b.denomination = "1 Dollar";
-    b.coin_currency = "USD";
+    b.currency_id = id_of(LookupKind::Currency, "USD");
     b.notes = "has a \"quote\" inside";
     EXPECT_TRUE(coins.create(b).has_value());
   }
@@ -120,7 +133,8 @@ TEST_F(CollectionIoTest, JsonRoundTripReproducesCollection) {
 }
 
 TEST_F(CollectionIoTest, ImportRejectsInvalidGraphAndWritesNothing) {
-  const std::string invalid = R"({"coins":[{"country":"","year_from":0,"year_to":0}]})";
+  // country_id 0 fails validation (country is required).
+  const std::string invalid = R"({"coins":[{"country_id":0,"year_from":0,"year_to":0}]})";
 
   Database fresh = Database::in_memory();
   coins::db::bootstrap_schema(fresh);
@@ -150,6 +164,8 @@ TEST_F(CollectionIoTest, CsvExportHasHeaderAndOneRowPerCoin) {
   EXPECT_NE(csv.find("\"gift, with comma\""), std::string::npos);
   // Latest estimate for coin A is the most recent (100.0).
   EXPECT_NE(csv.find("100"), std::string::npos);
+  // Encoded fields render as their localized display name (not codes).
+  EXPECT_NE(csv.find("Norway"), std::string::npos);
 }
 
 }  // namespace

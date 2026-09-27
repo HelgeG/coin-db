@@ -77,7 +77,8 @@ class CollectionService {
   [[nodiscard]] std::filesystem::path resolve_image(std::string_view stored_path) const;
 
   // --- Summary & import/export -------------------------------------------
-  [[nodiscard]] CollectionSummary summary(SummaryType type = kDefaultSummaryType);
+  [[nodiscard]] CollectionSummary summary(SummaryType type = kDefaultSummaryType,
+                                          std::string_view lang = "en");
 
   // --- Lookups (controlled vocabularies) ---------------------------------
   /// Lists a vocabulary's entries for display in `lang`.
