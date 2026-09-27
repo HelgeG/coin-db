@@ -9,7 +9,7 @@ const { t } = useI18n()
 <template>
   <header class="app-header">
     <nav class="nav">
-      <RouterLink to="/" class="brand">coins-db</RouterLink>
+      <RouterLink to="/" class="brand">{{ t('app.title') }}</RouterLink>
       <div class="nav-links">
         <RouterLink to="/">{{ t('nav.collection') }}</RouterLink>
         <RouterLink to="/summary">{{ t('nav.summary') }}</RouterLink>

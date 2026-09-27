@@ -22,10 +22,22 @@ export const availableLocales: LocaleInfo[] = [
 type Dictionary = Record<string, string>
 
 const en: Dictionary = {
+  'app.title': 'The Coin Collector',
+
   'nav.collection': 'Collection',
   'nav.summary': 'Summary',
   'nav.addCoin': 'Add coin',
   'nav.settings': 'Settings',
+
+  'common.loading': 'Loading…',
+
+  'summary.title': 'Summary',
+  'summary.coins': 'Coins',
+  'summary.totalValue': 'Total estimated value',
+  'summary.coinsByCountry': 'Coins by country',
+  'summary.country': 'Country',
+  'summary.noCoins': 'No coins recorded.',
+  'summary.exportJson': 'Export collection as JSON',
 
   'settings.title': 'Settings',
   'settings.appearance': 'Appearance',
@@ -41,10 +53,22 @@ const en: Dictionary = {
 
 // Norwegian (bokmål). English is the fallback for any missing key.
 const nb: Dictionary = {
+  'app.title': 'Myntsamleren',
+
   'nav.collection': 'Samling',
   'nav.summary': 'Sammendrag',
   'nav.addCoin': 'Legg til mynt',
   'nav.settings': 'Innstillinger',
+
+  'common.loading': 'Laster…',
+
+  'summary.title': 'Sammendrag',
+  'summary.coins': 'Mynter',
+  'summary.totalValue': 'Total estimert verdi',
+  'summary.coinsByCountry': 'Mynter etter land',
+  'summary.country': 'Land',
+  'summary.noCoins': 'Ingen mynter registrert.',
+  'summary.exportJson': 'Eksporter samlingen som JSON',
 
   'settings.title': 'Innstillinger',
   'settings.appearance': 'Utseende',

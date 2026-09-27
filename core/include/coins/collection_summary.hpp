@@ -6,13 +6,12 @@
 
 namespace coins {
 
-/// Total face value of coins sharing one denomination currency. Face values are
-/// never converted between currencies, so they are reported per currency.
-struct FaceValueTotal {
-  std::string currency;  // ISO 4217 code, e.g. "NOK"
-  double total_face_value = 0.0;
+/// Number of coins originating from one country.
+struct CountryCount {
+  std::string country;
+  int coin_count = 0;
 
-  friend bool operator==(const FaceValueTotal&, const FaceValueTotal&) = default;
+  friend bool operator==(const CountryCount&, const CountryCount&) = default;
 };
 
 /// A snapshot of the whole collection's headline figures.
@@ -23,9 +22,9 @@ struct CollectionSummary {
   /// contribute nothing.
   double total_estimate_eur = 0.0;
 
-  /// Face-value totals grouped by the coins' own currencies, sorted by currency.
-  /// Only coins that have both a currency and a face value are included.
-  std::vector<FaceValueTotal> face_value_by_currency;
+  /// Coin counts grouped by country, sorted by descending count then country
+  /// name.
+  std::vector<CountryCount> coins_by_country;
 
   friend bool operator==(const CollectionSummary&, const CollectionSummary&) = default;
 };

@@ -116,6 +116,8 @@ TEST_F(CliAppTest, EstimateThenSummary) {
   EXPECT_EQ(summary.code, 0);
   EXPECT_NE(summary.out.find("Coins: 1"), std::string::npos);
   EXPECT_NE(summary.out.find("100.00 EUR"), std::string::npos);
+  EXPECT_NE(summary.out.find("Coins by country:"), std::string::npos);
+  EXPECT_NE(summary.out.find("Norway: 1"), std::string::npos);
 }
 
 TEST_F(CliAppTest, ExportThenImportIntoFreshCollection) {

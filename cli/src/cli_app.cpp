@@ -411,9 +411,9 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
     const CollectionSummary totals = service.summary();
     out << "Coins: " << totals.coin_count << "\n";
     out << std::format("Total estimated value: {:.2f} EUR\n", totals.total_estimate_eur);
-    out << "Face value by currency:\n";
-    for (const FaceValueTotal& entry : totals.face_value_by_currency) {
-      out << std::format("  {}: {}\n", entry.currency, std::format("{}", entry.total_face_value));
+    out << "Coins by country:\n";
+    for (const CountryCount& entry : totals.coins_by_country) {
+      out << std::format("  {}: {}\n", entry.country, entry.coin_count);
     }
   });
 

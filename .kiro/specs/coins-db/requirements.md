@@ -70,8 +70,8 @@ As a collector, I want to find coins quickly.
 As a collector, I want to know the total value of my collection.
 
 - WHEN I view the collection summary, THEN I see the total estimated value in EUR
-  (using the latest estimate per coin), and a face-value breakdown grouped by the
-  coins' own currencies (face values are not converted).
+  (using the latest estimate per coin), and a breakdown of how many coins I have
+  from each country.
 - WHEN I add a new value estimate to a coin, THEN prior estimates are retained as
   history so I can see how the estimate has changed over time.
 

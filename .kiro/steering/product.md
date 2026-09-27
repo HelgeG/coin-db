@@ -27,8 +27,8 @@ To replace ad-hoc notes/spreadsheets with a structured, searchable catalog that:
 - Attach reference links (URL + label) and images (copied into a managed store).
 - Add EUR value estimates as a retained history (never overwritten).
 - Search, filter, and sort the collection.
-- View collection summary: total estimated EUR value plus a face-value breakdown
-  by the coins' own currencies.
+- View collection summary: total estimated EUR value plus a per-country coin
+  count (how many coins from each country).
 - Export/import for backup and portability.
 
 ## Interfaces

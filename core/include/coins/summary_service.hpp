@@ -16,7 +16,7 @@ class SummaryService {
   explicit SummaryService(db::Database& db);
 
   /// Builds a `CollectionSummary`: coin count, the EUR total of each coin's
-  /// latest estimate, and per-currency face-value totals.
+  /// latest estimate, and per-country coin counts.
   [[nodiscard]] CollectionSummary summarize();
 
  private:

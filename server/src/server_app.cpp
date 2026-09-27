@@ -131,14 +131,13 @@ std::optional<std::string> read_file_bytes(const std::filesystem::path& path) {
 }
 
 json summary_to_json(const CollectionSummary& summary) {
-  json currencies = json::array();
-  for (const FaceValueTotal& entry : summary.face_value_by_currency) {
-    currencies.push_back(
-        json{{"currency", entry.currency}, {"total_face_value", entry.total_face_value}});
+  json countries = json::array();
+  for (const CountryCount& entry : summary.coins_by_country) {
+    countries.push_back(json{{"country", entry.country}, {"coin_count", entry.coin_count}});
   }
   return json{{"coin_count", summary.coin_count},
               {"total_estimate_eur", summary.total_estimate_eur},
-              {"face_value_by_currency", currencies}};
+              {"coins_by_country", countries}};
 }
 
 }  // namespace

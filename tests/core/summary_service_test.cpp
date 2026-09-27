@@ -20,7 +20,7 @@ namespace {
 
 using coins::Coin;
 using coins::CollectionSummary;
-using coins::FaceValueTotal;
+using coins::CountryCount;
 using coins::Id;
 using coins::SummaryService;
 using coins::ValueEstimate;
@@ -40,8 +40,13 @@ class SummaryServiceTest : public ::testing::Test {
   }
 
   Id add_coin(std::optional<std::string> currency, std::optional<double> face) {
+    return add_coin_in("Norway", std::move(currency), face);
+  }
+
+  Id add_coin_in(std::string country, std::optional<std::string> currency,
+                 std::optional<double> face) {
     Coin coin;
-    coin.country = "Norway";
+    coin.country = std::move(country);
     coin.year_from = 1963;
     coin.year_to = 1963;
     coin.coin_currency = std::move(currency);
@@ -70,7 +75,7 @@ TEST_F(SummaryServiceTest, EmptyCollectionIsAllZero) {
   const CollectionSummary result = summary.summarize();
   EXPECT_EQ(result.coin_count, 0);
   EXPECT_DOUBLE_EQ(result.total_estimate_eur, 0.0);
-  EXPECT_TRUE(result.face_value_by_currency.empty());
+  EXPECT_TRUE(result.coins_by_country.empty());
 }
 
 TEST_F(SummaryServiceTest, TotalUsesLatestEstimatePerCoin) {
@@ -88,18 +93,20 @@ TEST_F(SummaryServiceTest, TotalUsesLatestEstimatePerCoin) {
   EXPECT_DOUBLE_EQ(result.total_estimate_eur, 300.0);  // 100 + 200 + 0
 }
 
-TEST_F(SummaryServiceTest, FaceValueGroupedByCurrency) {
-  add_coin("NOK", 0.5);
-  add_coin("NOK", 1.0);
-  add_coin("USD", 0.25);
-  add_coin(std::nullopt, 5.0);    // no currency -> excluded
-  add_coin("SEK", std::nullopt);  // no face value -> excluded
+TEST_F(SummaryServiceTest, CoinsGroupedByCountry) {
+  add_coin_in("Norway", std::nullopt, std::nullopt);
+  add_coin_in("Norway", std::nullopt, std::nullopt);
+  add_coin_in("Norway", std::nullopt, std::nullopt);
+  add_coin_in("Sweden", std::nullopt, std::nullopt);
+  add_coin_in("Denmark", std::nullopt, std::nullopt);
+  add_coin_in("Sweden", std::nullopt, std::nullopt);
 
   SummaryService summary{db_};
   const CollectionSummary result = summary.summarize();
 
-  const std::vector<FaceValueTotal> expected{{"NOK", 1.5}, {"USD", 0.25}};
-  EXPECT_EQ(result.face_value_by_currency, expected);
+  // Sorted by descending count, then country name ascending.
+  const std::vector<CountryCount> expected{{"Norway", 3}, {"Sweden", 2}, {"Denmark", 1}};
+  EXPECT_EQ(result.coins_by_country, expected);
 }
 
 }  // namespace

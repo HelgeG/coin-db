@@ -155,8 +155,8 @@ image
 - Coin face value keeps its own `coin_currency` (informational; not converted).
 - All monetary estimates and `acquired_price_eur` are stored in **EUR**.
 - Collection summary reports total estimated value in EUR (latest estimate per coin)
-  and, separately, a face-value breakdown grouped by `coin_currency` (since face
-  values are in mixed currencies and are not converted).
+  and, separately, a per-country coin count (how many coins originate from each
+  country), sorted by descending count then country name.
 
 ## Search / Filter / Sort
 

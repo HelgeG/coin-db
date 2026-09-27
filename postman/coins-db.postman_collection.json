@@ -144,7 +144,8 @@
               "pm.test('status is 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
               "pm.test('has a coin count', () => pm.expect(body.coin_count).to.be.at.least(1));",
-              "pm.test('total reflects the estimate', () => pm.expect(body.total_estimate_eur).to.be.at.least(120.5));"
+              "pm.test('total reflects the estimate', () => pm.expect(body.total_estimate_eur).to.be.at.least(120.5));",
+              "pm.test('has a coins-by-country breakdown', () => pm.expect(body.coins_by_country).to.be.an('array'));"
             ],
             "type": "text/javascript"
           }

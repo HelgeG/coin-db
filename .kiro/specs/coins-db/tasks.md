@@ -65,7 +65,7 @@ are in **EUR**; images are copied into a **managed store**.
 - [x] Query latest estimate per coin (`latest_for_coin`; `estimated_at` then id
       tie-break) and full history (`list_for_coin`, chronological).
 - [x] Collection summary: total EUR estimate (latest per coin via window
-      function) + face-value breakdown by `coin_currency` (`SummaryService`).
+      function) + per-country coin counts (`SummaryService`).
 - [x] Tests for estimate validation, append-only history/latest, and summary math.
 
 ## Phase 5 — `coins_core`: search / filter / sort (Req 3)

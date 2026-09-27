@@ -57,15 +57,15 @@ export interface CoinDetail extends Coin {
   images: Image[]
 }
 
-export interface FaceValueTotal {
-  currency: string
-  total_face_value: number
+export interface CountryCount {
+  country: string
+  coin_count: number
 }
 
 export interface CollectionSummary {
   coin_count: number
   total_estimate_eur: number
-  face_value_by_currency: FaceValueTotal[]
+  coins_by_country: CountryCount[]
 }
 
 /** Fields accepted when creating/updating a coin. */

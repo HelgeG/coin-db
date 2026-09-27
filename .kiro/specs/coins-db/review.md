@@ -29,7 +29,7 @@ passing; the web SPA typechecks and builds.
 
 ### Req 4 — Value tracking
 - Collection summary: total EUR from each coin's **latest** estimate, plus a
-  face-value breakdown grouped by each coin's own currency (never converted). ✅
+  per-country coin count (how many coins from each country). ✅
 - Estimates are append-only history; latest is the current value. ✅
 
 ### Req 5 — Update and delete

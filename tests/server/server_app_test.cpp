@@ -126,6 +126,10 @@ TEST_F(ServerAppTest, AddEstimateThenSummary) {
   const json body = json::parse(summary->body);
   EXPECT_EQ(body.at("coin_count").get<int>(), 1);
   EXPECT_DOUBLE_EQ(body.at("total_estimate_eur").get<double>(), 100.0);
+  const json countries = body.at("coins_by_country");
+  ASSERT_EQ(countries.size(), 1u);
+  EXPECT_EQ(countries[0].at("country").get<std::string>(), "Norway");
+  EXPECT_EQ(countries[0].at("coin_count").get<int>(), 1);
 }
 
 TEST_F(ServerAppTest, DeleteCoin) {

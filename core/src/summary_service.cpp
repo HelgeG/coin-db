@@ -34,12 +34,13 @@ CollectionSummary SummaryService::summarize() {
   }
 
   {
+    // Count coins per country, most numerous first, then alphabetically.
     Statement stmt = db_.prepare(
-        "SELECT coin_currency, SUM(face_value) FROM coin "
-        "WHERE coin_currency IS NOT NULL AND face_value IS NOT NULL "
-        "GROUP BY coin_currency ORDER BY coin_currency;");
+        "SELECT country, COUNT(*) FROM coin "
+        "GROUP BY country ORDER BY COUNT(*) DESC, country ASC;");
     while (stmt.step()) {
-      summary.face_value_by_currency.push_back({stmt.column_text(0), stmt.column_double(1)});
+      summary.coins_by_country.push_back(
+          {stmt.column_text(0), static_cast<int>(stmt.column_int64(1))});
     }
   }
 

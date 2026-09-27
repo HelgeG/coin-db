@@ -40,7 +40,7 @@ npm run preview        # serve the built bundle locally
   and images, with forms to add estimates/links/images and to delete the coin.
 - **Add / edit** (`/coins/new`, `/coins/:id/edit`) — all coin fields; server
   validation errors are shown inline.
-- **Summary** (`/summary`) — collection totals and per-currency face value, plus
+- **Summary** (`/summary`) — collection totals and a per-country coin count, plus
   a JSON export link.
 - **Settings** (`/settings`) — appearance (theme) and language preferences.
 
