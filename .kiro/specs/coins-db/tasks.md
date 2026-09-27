@@ -2,7 +2,9 @@
 
 Implementation plan for a **C++** core with a **CLI** and a **web app**.
 Tasks are ordered; each references the requirements it satisfies. Value estimates
-are in **EUR**; images are copied into a **managed store**.
+and acquisition prices are in the collection's **base currency** (a user-selectable
+`currency` lookup reference, default EUR; no conversion); images are copied into a
+**managed store**.
 
 ## Phase 0 — Setup & minor decisions
 
@@ -260,3 +262,35 @@ Makes the hand-rolled web i18n complete, enforced, and correctly formatted
 - [ ] Verify: `vue-tsc` typecheck (which now enforces key completeness) +
       `vite build` pass; a manual language-switch check shows no residual English
       in nb.
+
+## Phase 14 — User-selectable collection base currency (Req 4 & 7)
+
+Replace the hardcoded EUR assumption with a single, user-selectable collection
+base currency (a `currency` lookup reference) for value estimates and
+acquisition price. No conversion. Breaking schema v3 (no production data).
+
+- [ ] Schema v3 + settings: add `app_setting` table; rename
+      `value_estimate.amount_eur` → `amount` and `coin.acquired_price_eur` →
+      `acquired_price`; bump `kSchemaVersion` to 3 (version-aware bootstrap);
+      seed `base_currency_id` to the EUR currency entry. Schema/migration tests.
+- [ ] Core `SettingsService`: `base_currency()` (defaults/seeds EUR) and
+      `set_base_currency(id)` (validates the id is a `currency` entry); expose via
+      `CollectionService` plus a helper to format an amount with the base
+      currency. Update `ValueEstimate`/`Coin` domain fields and validation
+      (`amount`, `acquired_price`) and the repositories/JSON. Unit tests.
+- [ ] Summary + search: headline total and value filters use the renamed `amount`
+      column; display the base currency. Update tests.
+- [ ] CLI: `estimate --amount` (rename from `--eur`), `add/update
+      --acquired-price` (rename from `--acquired-price-eur`); new `base-currency`
+      command (show / `set <code|name>`); show/list/summary display amounts with
+      the base-currency code/name. CLI tests.
+- [ ] Server: `GET/PUT /settings` (base currency as `{ id, code, name }`); coin
+      and summary JSON amounts unchanged in shape but documented as base currency;
+      estimate endpoint accepts `amount`. API tests.
+- [ ] Web: Settings base-currency selector (currency combo, notes no-conversion);
+      display estimates/acquisition/summary in the base currency (fetch it once);
+      rename form fields. i18n keys (en/nb). Typecheck + build.
+- [ ] Import/export: JSON carries the base-currency setting (by code) and applies
+      it on import; CSV amount columns are in the base currency. Update
+      `samples/collection.sample.json`, postman, `review.md`. Round-trip test.
+- [ ] Verify: full build + ctest + web build; seed + base-currency smoke test.

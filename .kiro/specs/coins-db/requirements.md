@@ -8,8 +8,9 @@ condition and value estimates, attach reference material and images, and search
 and filter the collection.
 
 It is delivered as a **CLI** and a **web app**, both built on a shared **C++**
-core. Each coin records its own denomination currency (e.g. NOK, USD), while all
-**value estimates are expressed in EUR**.
+core. Each coin records its own denomination currency (e.g. NOK, USD). Value
+estimates and acquisition prices are expressed in a single, user-selectable
+**collection base currency** (e.g. EUR or NOK), chosen once for the collection.
 
 ## Goals
 
@@ -38,10 +39,10 @@ complete catalog entry.
 - WHEN I create a coin, THEN I can record its condition using any recognized grading
   scale — numeric (Sheldon 1–70), the Norwegian scale (0, 0/01, 01, 1+, 1, 1-, 2, 3),
   or adjectival grades like VF, XF, MS. The grading scale is not fixed to one system.
-- WHEN I create a coin, THEN I can record a value estimate **in EUR** with the date
-  the estimate was made.
-- WHEN I create a coin, THEN I can record acquisition info: date acquired, price paid
-  (in EUR), and source/seller.
+- WHEN I create a coin, THEN I can record a value estimate **in the collection's
+  base currency** with the date the estimate was made.
+- WHEN I create a coin, THEN I can record acquisition info: date acquired, price
+  paid (**in the collection's base currency**), and source/seller.
 - IF a required field (e.g., country, year) is missing, THEN the system rejects the
   entry with a clear validation message.
 
@@ -73,12 +74,13 @@ As a collector, I want to know the total value of my collection and view it
 broken down in different predefined ways.
 
 - WHEN I view the collection summary, THEN I always see the headline total
-  estimated value in EUR (using the latest estimate per coin).
+  estimated value in the collection's **base currency** (using the latest
+  estimate per coin).
 - WHEN I view the collection summary, THEN I can choose one breakdown from a list
   of predefined summaries, shown together with the headline total (combined view).
 - The initial set of predefined breakdowns is:
   - Coins by country (count per country).
-  - Total estimated value in EUR (headline figure).
+  - Total estimated value in the base currency (headline figure).
   - Coins by year / decade.
   - Coins by grade.
   - Coins by metal / composition.
@@ -122,6 +124,12 @@ As a collector using the web app, I want to control appearance and language.
   choice persists across sessions.
 - WHEN I open Settings, THEN I can choose the interface language (English and
   Norwegian bokmål to start), and the choice persists across sessions.
+- WHEN I open Settings, THEN I can choose the collection's **base currency** (the
+  currency that value estimates and acquisition prices are expressed in, e.g. EUR
+  or NOK), selected from the currency vocabulary. It is a collection-wide setting
+  stored with the collection (not a per-device preference), defaults to EUR, and
+  amounts are shown in that currency across the CLI and web. No conversion is
+  performed — amounts are the values entered.
 - WHERE a string is not yet translated, THEN the app falls back to English.
 
 ### 8. Encoded, localized field vocabularies
@@ -225,10 +233,10 @@ it — shown correctly in my chosen language.
 | Composition (metal)  | Optional; **lookup entry** (generated code, localized name) |
 | Weight, diameter     | Optional physical measurements                    |
 | Condition / grade    | Any scale: numeric (Sheldon) or symbolic (Norwegian, adjectival) |
-| Value estimate (EUR) | Amount in EUR + date; history retained            |
+| Value estimate       | Amount in the base currency + date; history retained |
 | Reference links      | Zero or more (URL + label)                        |
 | Images               | Zero or more; copied into managed store           |
-| Acquisition info     | Date, price paid (EUR), source                    |
+| Acquisition info     | Date, price paid (in the base currency), source   |
 | Notes                | Free text                                         |
 | Timestamps           | Created / updated                                 |
 
@@ -240,8 +248,13 @@ it — shown correctly in my chosen language.
 
 - C++ dependency manager: **Conan 2**.
 - Web frontend framework: **Vue 3 + Vite + TypeScript**.
-- Acquisition price is stored in **EUR only**; the original paid currency is not
-  retained (callers convert to EUR before recording).
+- Value estimates and acquisition prices are expressed in a single,
+  user-selectable **collection base currency** (a reference to a `currency`
+  vocabulary entry), stored as a collection-wide setting and defaulting to EUR.
+  **No conversion** is performed — amounts are stored exactly as entered and
+  shown in the base currency; the original paid currency is not separately
+  retained. (This supersedes the earlier "EUR only" decision. Because there is no
+  production data, the schema/API/CLI change in a breaking way.)
 - **Encoded localized vocabularies** (Req 8): covers country, denomination,
   composition, mint, and **currency**. Country uses ISO 3166-1 alpha-2 codes
   (ISO 3166-3 for historical states); currency uses ISO 4217 codes (current +
