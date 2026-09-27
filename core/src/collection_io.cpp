@@ -16,7 +16,9 @@
 #include "coins/db/statement.hpp"
 #include "coins/image.hpp"
 #include "coins/json.hpp"
+#include "coins/lookup_kind.hpp"
 #include "coins/reference_link.hpp"
+#include "coins/settings_service.hpp"
 #include "coins/value_estimate.hpp"
 
 namespace coins {
@@ -349,12 +351,43 @@ LookupIdMaps import_lookups(db::Database& db, const json& lookups) {
   return it == m.end() ? std::nullopt : std::optional<Id>{it->second};
 }
 
+// --- Settings (base currency) ---------------------------------------------
+
+// Exports collection settings. The base currency is referenced by its currency
+// `code` so the export stays portable across differently-seeded databases.
+json export_settings(db::Database& db) {
+  json settings = json::object();
+  db::SqliteLookupRepository repo{db};
+  SettingsService svc{db, repo};
+  if (const auto currency = svc.base_currency()) {
+    settings["base_currency_code"] = currency->code;
+  }
+  return settings;
+}
+
+// Applies the settings section: resolves the base currency by code (it was
+// imported into `lookups` first) and sets it. Unknown/missing codes are ignored
+// so import stays lenient.
+void import_settings(db::Database& db, const json& settings) {
+  if (!settings.is_object() || !settings.contains("base_currency_code")) {
+    return;
+  }
+  const std::string code = settings.value("base_currency_code", "");
+  if (code.empty()) return;
+  db::SqliteLookupRepository repo{db};
+  if (const auto entry = repo.find_by_code(LookupKind::Currency, code)) {
+    SettingsService svc{db, repo};
+    (void)svc.set_base_currency(entry->id);
+  }
+}
+
 }  // namespace
 
 std::string export_json(db::Database& db) {
   json root;
-  root["version"] = 2;
+  root["version"] = 3;
   root["lookups"] = export_lookups(db);
+  root["settings"] = export_settings(db);
   root["coins"] = json::array();
   for (const Coin& coin : read_coins(db)) {
     json coin_json = coin_to_json(coin);
@@ -474,6 +507,9 @@ std::expected<ImportStats, ValidationErrors> import_json(db::Database& db,
     LookupIdMaps maps;
     if (root.contains("lookups") && root.at("lookups").is_object()) {
       maps = import_lookups(db, root.at("lookups"));
+    }
+    if (root.contains("settings")) {
+      import_settings(db, root.at("settings"));
     }
 
     ImportStats stats;

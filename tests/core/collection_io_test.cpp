@@ -19,6 +19,7 @@
 #include "coins/lookup_kind.hpp"
 #include "coins/lookup_service.hpp"
 #include "coins/reference_link.hpp"
+#include "coins/settings_service.hpp"
 #include "coins/value_estimate.hpp"
 
 namespace {
@@ -129,6 +130,29 @@ TEST_F(CollectionIoTest, JsonRoundTripReproducesCollection) {
   // Deterministic export ordered by id, with ids preserved, so a faithful
   // restore re-exports byte-for-byte identically.
   EXPECT_EQ(coins::export_json(fresh), exported);
+}
+
+TEST_F(CollectionIoTest, BaseCurrencyRoundTripsViaSettingsSection) {
+  // Set the base currency to NOK, export, and import into a fresh DB; the
+  // fresh DB should reflect NOK (carried by the settings section, by code).
+  SqliteLookupRepository lookups{db_};
+  coins::SettingsService settings{db_, lookups};
+  const auto nok = lookups.find_by_code(coins::LookupKind::Currency, "NOK");
+  ASSERT_TRUE(nok.has_value());
+  ASSERT_TRUE(settings.set_base_currency(nok->id));
+
+  const std::string exported = coins::export_json(db_);
+
+  Database fresh = Database::in_memory();
+  coins::db::bootstrap_schema(fresh);  // fresh DB defaults to EUR
+  const auto stats = coins::import_json(fresh, exported);
+  ASSERT_TRUE(stats.has_value());
+
+  SqliteLookupRepository fresh_lookups{fresh};
+  coins::SettingsService fresh_settings{fresh, fresh_lookups};
+  const auto base = fresh_settings.base_currency();
+  ASSERT_TRUE(base.has_value());
+  EXPECT_EQ(base->code, "NOK");
 }
 
 TEST_F(CollectionIoTest, UserCreatedLookupsRoundTripViaLookupsSection) {

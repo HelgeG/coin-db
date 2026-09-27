@@ -13,7 +13,8 @@ passing; the web SPA typechecks and builds.
 - Condition/grade recorded on **any** scale: numeric (Sheldon 1–70), the
   Norwegian scale (`0, 0/01, 01, 1+, 1, 1-, 2, 3`), or adjectival (VF/XF/MS…).
   Scale-aware validation; unknown scales accepted. ✅
-- EUR value estimate with a date; acquisition date/price(EUR)/source. ✅
+- Value estimate (in the base currency) with a date; acquisition
+  date/price(base currency)/source. ✅
 - Missing required fields rejected with clear messages (`validate_coin`; REST 422
   with field/message list; CLI/web show them). ✅
 
@@ -23,12 +24,14 @@ passing; the web SPA typechecks and builds.
   over `GET /images/{id}/file`; removed with their files. ✅
 
 ### Req 3 — Search / filter / sort
-- Filter by country, year/range, denomination, grade, metal, EUR value range;
+- Filter by country, year/range, denomination, grade, metal, value range (base
+  currency);
   sort by year/country/latest value/date added; free-text over notes, country,
   denomination, and reference-link labels. ✅
 
 ### Req 4 — Value tracking and summaries
-- Collection summary: headline total EUR from each coin's **latest** estimate,
+- Collection summary: headline total in the base currency from each coin's
+  **latest** estimate,
   always shown. ✅
 - Selectable predefined breakdown (by country, total value only, by decade, by
   grade, by metal), combined with the headline total; default `by_country`.
@@ -69,7 +72,8 @@ passing; the web SPA typechecks and builds.
 - Display falls back lang → English → any → code. ✅
 
 ### Domain rules & interfaces
-- Per-coin currency kept, never converted; estimates/acquisition in EUR;
+- Per-coin currency kept, never converted; estimates/acquisition in the
+  user-selectable collection base currency (default EUR, no conversion);
   country + a year required; append-only estimates. ✅
 - Two interfaces on one shared core: CLI and web app. ✅
 - Non-goals respected: no multi-user, no marketplace, no price scraping. ✅
