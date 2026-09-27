@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
-import { api } from '../api/client'
 import type { LookupKind, LookupRef } from '../api/types'
 import { useI18n } from '../composables/useI18n'
+import { useLookupOptions } from '../composables/useLookupOptions'
 
 /**
  * A combo box for a controlled vocabulary (country, denomination, …). It shows a
@@ -14,6 +14,9 @@ import { useI18n } from '../composables/useI18n'
  * `id`; a value typed via "Add new…" is emitted as a synthetic ref with
  * `id === 0`, so the parent can turn it into `{ name }` on submit while an
  * `id > 0` becomes `{ id }`.
+ *
+ * For read-only free-text filtering (a plain string, no create), use LookupFilter,
+ * which shares the same localized-option loading via `useLookupOptions`.
  */
 const props = defineProps<{
   kind: LookupKind
@@ -26,13 +29,11 @@ const emit = defineEmits<{
   'update:modelValue': [value: LookupRef | null]
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const NEW = '__new__'
 const NONE = ''
 
-const options = ref<LookupRef[]>([])
-const loadError = ref<string | null>(null)
 /** The <select> value: an entry id (as string), NONE, or the NEW sentinel. */
 const selected = ref<string>(NONE)
 /** Text typed for a new entry when NEW is selected. */
@@ -40,15 +41,6 @@ const newName = ref<string>('')
 
 const uid = `lookup-${props.kind}-${Math.random().toString(36).slice(2, 8)}`
 const addingNew = computed(() => selected.value === NEW)
-
-async function loadOptions(): Promise<void> {
-  loadError.value = null
-  try {
-    options.value = await api.listLookups(props.kind, locale.value)
-  } catch (e) {
-    loadError.value = e instanceof Error ? e.message : String(e)
-  }
-}
 
 /** Reflect the incoming model value into the local control state. */
 function syncFromModel(ref_: LookupRef | null): void {
@@ -63,6 +55,11 @@ function syncFromModel(ref_: LookupRef | null): void {
     newName.value = ref_.name
   }
 }
+
+// Load localized options; re-sync the control against them on mount and locale change.
+const { options, loadError } = useLookupOptions(props.kind, () =>
+  syncFromModel(props.modelValue),
+)
 
 function emitFromState(): void {
   if (selected.value === NONE) {
@@ -81,22 +78,11 @@ function onSelectChange(): void {
   emitFromState()
 }
 
-onMounted(async () => {
-  await loadOptions()
-  syncFromModel(props.modelValue)
-})
-
 // Keep in sync when the parent replaces the value (e.g. after edit load).
 watch(
   () => props.modelValue,
   (next) => syncFromModel(next),
 )
-
-// Reload localized names when the language changes.
-watch(locale, async () => {
-  await loadOptions()
-  syncFromModel(props.modelValue)
-})
 </script>
 
 <template>
