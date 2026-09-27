@@ -126,10 +126,37 @@ TEST_F(ServerAppTest, AddEstimateThenSummary) {
   const json body = json::parse(summary->body);
   EXPECT_EQ(body.at("coin_count").get<int>(), 1);
   EXPECT_DOUBLE_EQ(body.at("total_estimate_eur").get<double>(), 100.0);
-  const json countries = body.at("coins_by_country");
-  ASSERT_EQ(countries.size(), 1u);
-  EXPECT_EQ(countries[0].at("country").get<std::string>(), "Norway");
-  EXPECT_EQ(countries[0].at("coin_count").get<int>(), 1);
+  // Default breakdown is by_country.
+  const json breakdown = body.at("breakdown");
+  EXPECT_EQ(breakdown.at("type").get<std::string>(), "by_country");
+  const json buckets = breakdown.at("buckets");
+  ASSERT_EQ(buckets.size(), 1u);
+  EXPECT_EQ(buckets[0].at("label").get<std::string>(), "Norway");
+  EXPECT_EQ(buckets[0].at("coin_count").get<int>(), 1);
+}
+
+TEST_F(ServerAppTest, SummaryTypeSelectsBreakdown) {
+  create_coin();
+  httplib::Client cli = client();
+
+  // A recognized type is honored.
+  const auto by_decade = cli.Get("/summary?type=by_decade");
+  ASSERT_TRUE(by_decade);
+  EXPECT_EQ(by_decade->status, 200);
+  EXPECT_EQ(json::parse(by_decade->body).at("breakdown").at("type").get<std::string>(),
+            "by_decade");
+
+  // total_value carries no buckets.
+  const auto total = cli.Get("/summary?type=total_value");
+  ASSERT_TRUE(total);
+  const json total_breakdown = json::parse(total->body).at("breakdown");
+  EXPECT_EQ(total_breakdown.at("type").get<std::string>(), "total_value");
+  EXPECT_TRUE(total_breakdown.at("buckets").empty());
+
+  // An unknown type falls back to the default (by_country).
+  const auto bogus = cli.Get("/summary?type=nope");
+  ASSERT_TRUE(bogus);
+  EXPECT_EQ(json::parse(bogus->body).at("breakdown").at("type").get<std::string>(), "by_country");
 }
 
 TEST_F(ServerAppTest, DeleteCoin) {

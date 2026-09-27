@@ -57,15 +57,31 @@ export interface CoinDetail extends Coin {
   images: Image[]
 }
 
-export interface CountryCount {
-  country: string
+export type SummaryType = 'by_country' | 'total_value' | 'by_decade' | 'by_grade' | 'by_metal'
+
+/** Predefined summary types in display order; the first is the default. */
+export const summaryTypes: SummaryType[] = [
+  'by_country',
+  'total_value',
+  'by_decade',
+  'by_grade',
+  'by_metal',
+]
+
+export interface SummaryBucket {
+  label: string
   coin_count: number
+}
+
+export interface SummaryBreakdown {
+  type: SummaryType
+  buckets: SummaryBucket[]
 }
 
 export interface CollectionSummary {
   coin_count: number
   total_estimate_eur: number
-  coins_by_country: CountryCount[]
+  breakdown: SummaryBreakdown
 }
 
 /** Fields accepted when creating/updating a coin. */

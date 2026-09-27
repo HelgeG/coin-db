@@ -406,14 +406,39 @@ int run(int argc, const char* const* argv, std::istream& in, std::ostream& out, 
 
   // --- summary ------------------------------------------------------------
   auto* summary = app.add_subcommand("summary", "Show collection totals");
+  std::string summary_type = std::string(coins::to_string(coins::kDefaultSummaryType));
+  summary
+      ->add_option("--type", summary_type,
+                   "Breakdown: by_country|total_value|by_decade|by_grade|by_metal")
+      ->check(CLI::IsMember({"by_country", "total_value", "by_decade", "by_grade", "by_metal"}));
   summary->callback([&] {
+    const coins::SummaryType type =
+        coins::summary_type_from_string(summary_type).value_or(coins::kDefaultSummaryType);
     auto service = CollectionService::from_data_dir(data_dir);
-    const CollectionSummary totals = service.summary();
+    const CollectionSummary totals = service.summary(type);
     out << "Coins: " << totals.coin_count << "\n";
     out << std::format("Total estimated value: {:.2f} EUR\n", totals.total_estimate_eur);
-    out << "Coins by country:\n";
-    for (const CountryCount& entry : totals.coins_by_country) {
-      out << std::format("  {}: {}\n", entry.country, entry.coin_count);
+
+    if (type != coins::SummaryType::TotalValue) {
+      const std::string_view heading = [type] {
+        switch (type) {
+          case coins::SummaryType::ByCountry:
+            return "Coins by country";
+          case coins::SummaryType::ByDecade:
+            return "Coins by decade";
+          case coins::SummaryType::ByGrade:
+            return "Coins by grade";
+          case coins::SummaryType::ByMetal:
+            return "Coins by metal";
+          case coins::SummaryType::TotalValue:
+            return "";
+        }
+        return "";
+      }();
+      out << heading << ":\n";
+      for (const SummaryBucket& bucket : totals.breakdown.buckets) {
+        out << std::format("  {}: {}\n", bucket.label, bucket.coin_count);
+      }
     }
   });
 

@@ -109,9 +109,9 @@ std::filesystem::path CollectionService::resolve_image(std::string_view stored_p
   return store_.resolve(stored_path);
 }
 
-CollectionSummary CollectionService::summary() {
+CollectionSummary CollectionService::summary(SummaryType type) {
   SummaryService summary{db_};
-  return summary.summarize();
+  return summary.summarize(type);
 }
 
 std::string CollectionService::export_json() { return coins::export_json(db_); }

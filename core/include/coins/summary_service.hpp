@@ -2,6 +2,7 @@
 #define COINS_SUMMARY_SERVICE_HPP
 
 #include "coins/collection_summary.hpp"
+#include "coins/summary_type.hpp"
 
 namespace coins::db {
 class Database;
@@ -15,9 +16,11 @@ class SummaryService {
  public:
   explicit SummaryService(db::Database& db);
 
-  /// Builds a `CollectionSummary`: coin count, the EUR total of each coin's
-  /// latest estimate, and per-country coin counts.
-  [[nodiscard]] CollectionSummary summarize();
+  /// Builds a `CollectionSummary`: the coin count, the EUR total of each coin's
+  /// latest estimate (always computed), and the selected `type`'s breakdown
+  /// buckets. Buckets are sorted by descending count then label; `TotalValue`
+  /// produces no buckets.
+  [[nodiscard]] CollectionSummary summarize(SummaryType type = kDefaultSummaryType);
 
  private:
   db::Database& db_;

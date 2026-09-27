@@ -7,6 +7,7 @@ import type {
   Image,
   ImageKind,
   ReferenceLink,
+  SummaryType,
   ValueEstimate,
 } from './types'
 
@@ -117,7 +118,8 @@ export const api = {
   async removeImage(id: number): Promise<void> {
     await request<unknown>('DELETE', `/images/${id}`)
   },
-  summary(): Promise<CollectionSummary> {
-    return request<CollectionSummary>('GET', '/summary')
+  summary(type?: SummaryType): Promise<CollectionSummary> {
+    const query = type ? `?type=${encodeURIComponent(type)}` : ''
+    return request<CollectionSummary>('GET', `/summary${query}`)
   },
 }

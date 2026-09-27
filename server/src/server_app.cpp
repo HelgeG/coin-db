@@ -131,13 +131,14 @@ std::optional<std::string> read_file_bytes(const std::filesystem::path& path) {
 }
 
 json summary_to_json(const CollectionSummary& summary) {
-  json countries = json::array();
-  for (const CountryCount& entry : summary.coins_by_country) {
-    countries.push_back(json{{"country", entry.country}, {"coin_count", entry.coin_count}});
+  json buckets = json::array();
+  for (const SummaryBucket& bucket : summary.breakdown.buckets) {
+    buckets.push_back(json{{"label", bucket.label}, {"coin_count", bucket.coin_count}});
   }
   return json{{"coin_count", summary.coin_count},
               {"total_estimate_eur", summary.total_estimate_eur},
-              {"coins_by_country", countries}};
+              {"breakdown",
+               json{{"type", coins::to_string(summary.breakdown.type)}, {"buckets", buckets}}}};
 }
 
 }  // namespace
@@ -360,8 +361,15 @@ void register_routes(httplib::Server& server, CollectionService& service) {
   });
 
   // Collection summary.
-  server.Get("/summary", [&service](const Request&, Response& res) {
-    respond(res, 200, summary_to_json(service.summary()));
+  server.Get("/summary", [&service](const Request& req, Response& res) {
+    // Unknown or missing ?type= falls back to the default summary.
+    coins::SummaryType type = coins::kDefaultSummaryType;
+    if (req.has_param("type")) {
+      if (const auto parsed = coins::summary_type_from_string(req.get_param_value("type"))) {
+        type = *parsed;
+      }
+    }
+    respond(res, 200, summary_to_json(service.summary(type)));
   });
 
   // Export (JSON by default, ?format=csv for CSV).

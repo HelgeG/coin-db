@@ -27,9 +27,13 @@ passing; the web SPA typechecks and builds.
   sort by year/country/latest value/date added; free-text over notes, country,
   denomination, and reference-link labels. ✅
 
-### Req 4 — Value tracking
-- Collection summary: total EUR from each coin's **latest** estimate, plus a
-  per-country coin count (how many coins from each country). ✅
+### Req 4 — Value tracking and summaries
+- Collection summary: headline total EUR from each coin's **latest** estimate,
+  always shown. ✅
+- Selectable predefined breakdown (by country, total value only, by decade, by
+  grade, by metal), combined with the headline total; default `by_country`.
+  Available in the CLI (`summary --type`) and web (selector persisted in
+  `localStorage`). ✅
 - Estimates are append-only history; latest is the current value. ✅
 
 ### Req 5 — Update and delete
