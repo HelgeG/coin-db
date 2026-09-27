@@ -65,13 +65,26 @@ As a collector, I want to find coins quickly.
 - WHEN I view results, THEN I can sort by year, country, value estimate, or date added.
 - WHEN I search by free text, THEN it matches description, country, and reference labels.
 
-### 4. Value tracking
+### 4. Value tracking and summaries
 
-As a collector, I want to know the total value of my collection.
+As a collector, I want to know the total value of my collection and view it
+broken down in different predefined ways.
 
-- WHEN I view the collection summary, THEN I see the total estimated value in EUR
-  (using the latest estimate per coin), and a breakdown of how many coins I have
-  from each country.
+- WHEN I view the collection summary, THEN I always see the headline total
+  estimated value in EUR (using the latest estimate per coin).
+- WHEN I view the collection summary, THEN I can choose one breakdown from a list
+  of predefined summaries, shown together with the headline total (combined view).
+- The initial set of predefined breakdowns is:
+  - Coins by country (count per country).
+  - Total estimated value in EUR (headline figure).
+  - Coins by year / decade.
+  - Coins by grade.
+  - Coins by metal / composition.
+- WHEN I select a breakdown, THEN the selection is remembered and persists across
+  sessions; where no selection has been made, a sensible default breakdown
+  (coins by country) is shown.
+- Selecting a predefined summary is available in **both the web app and the CLI**
+  (e.g. the CLI accepts a summary-type option).
 - WHEN I add a new value estimate to a coin, THEN prior estimates are retained as
   history so I can see how the estimate has changed over time.
 

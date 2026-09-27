@@ -154,9 +154,34 @@ image
 
 - Coin face value keeps its own `coin_currency` (informational; not converted).
 - All monetary estimates and `acquired_price_eur` are stored in **EUR**.
-- Collection summary reports total estimated value in EUR (latest estimate per coin)
-  and, separately, a per-country coin count (how many coins originate from each
-  country), sorted by descending count then country name.
+- The collection summary always reports the headline total estimated value in EUR
+  (latest estimate per coin) and, alongside it, one selectable **predefined
+  breakdown** (a combined view).
+
+### Predefined summaries
+
+The core exposes a fixed, extensible set of predefined summary types. Each type
+maps to one parameterized aggregate query and yields an ordered list of
+`(label, value)` buckets. The initial set:
+
+| Type key       | Meaning                          | Grouping / value                                  |
+|----------------|----------------------------------|---------------------------------------------------|
+| `by_country`   | Coins by country (default)       | `COUNT(*)` grouped by `country`                   |
+| `total_value`  | Total estimated value (headline) | headline EUR total; no additional buckets         |
+| `by_decade`    | Coins by year / decade           | `COUNT(*)` grouped by `(year_from/10)*10` decade  |
+| `by_grade`     | Coins by grade                   | `COUNT(*)` grouped by `grade_label` (or scale)    |
+| `by_metal`     | Coins by metal / composition     | `COUNT(*)` grouped by `composition`               |
+
+- Breakdown buckets are sorted by descending count, then label ascending
+  (`total_value` has no buckets — only the headline figure).
+- The set is modeled as an `enum class SummaryType` plus a registry, so adding a
+  new predefined summary is additive (Open/Closed): new enum value + query, no
+  change to callers.
+- The **headline total** is always computed regardless of the selected type.
+- **Selection persistence** is a UI concern, not stored in the core DB: the web
+  app persists the chosen type in `localStorage` (like theme/language); the CLI
+  takes the type as a per-invocation option and has no persisted state. The
+  default, when unspecified, is `by_country`.
 
 ## Search / Filter / Sort
 
@@ -191,7 +216,9 @@ value sorting work off the current value.
 | POST   | /coins/{id}/images            | Upload image (multipart)         |
 | GET    | /images/{id}/file             | Serve image bytes                |
 | DELETE | /images/{id}                  | Remove image                     |
-| GET    | /summary                      | Collection totals                |
+| GET    | /summary                      | Totals + a selectable breakdown  |
+|        |   ?type=by_country\|total_value | (default `by_country`)           |
+|        |         \|by_decade\|by_grade\|by_metal |                          |
 | GET    | /export                       | JSON export                      |
 | POST   | /import                       | JSON import                      |
 
@@ -206,7 +233,7 @@ coins delete    <id>            # prompts for confirmation
 coins estimate  <id> --eur <amount> [--date ...] [--source ...]
 coins link      <id> --label ... --url ...
 coins image     <id> --file <path> [--kind obverse|reverse|detail]
-coins summary
+coins summary   [--type by_country|total_value|by_decade|by_grade|by_metal]   # default by_country
 coins export    --out collection.json
 coins import    --in collection.json
 ```

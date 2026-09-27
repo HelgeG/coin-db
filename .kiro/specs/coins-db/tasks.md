@@ -133,3 +133,29 @@ are in **EUR**; images are copied into a **managed store**.
 - [x] Seed/sample data for demo (`samples/collection.sample.json` + `scripts/seed.sh`).
 - [x] Final review against all requirements (`review.md`): v1 complete, 116 C++
       tests + SPA build green; known limitations documented.
+
+## Phase 11 — Selectable predefined summaries (Req 4)
+
+Extends the summary from a single fixed breakdown to a headline total plus one
+selectable predefined breakdown, available in both the CLI and web app.
+
+- [ ] Core: add `enum class SummaryType { ByCountry, TotalValue, ByDecade,
+      ByGrade, ByMetal }` and a generic breakdown result (ordered
+      `(label, count)` buckets). Extend `SummaryService` to compute the headline
+      total plus the buckets for a requested type via parameterized aggregate
+      queries (group by country / decade `(year_from/10)*10` / grade / metal).
+- [ ] Core tests: one grouping test per `SummaryType` (incl. bucket ordering and
+      empty-collection behavior) and a default-type test.
+- [ ] Server: `GET /summary?type=...` (default `by_country`); serialize the
+      headline total plus the selected breakdown buckets. Add API tests per type
+      and for an unknown/invalid type (fall back to default or 400 — decide in
+      implementation).
+- [ ] CLI: `coins summary [--type by_country|total_value|by_decade|by_grade|by_metal]`
+      (default `by_country`); print the headline total plus the selected
+      breakdown. CLI tests for the default and at least one alternate type.
+- [ ] Web: summary-type selector on the Summary view; persist the choice in
+      `localStorage` (like theme/language), default `by_country`. Render the
+      headline total plus the chosen breakdown table. Add i18n keys (en/nb) for
+      the type labels.
+- [ ] Update `postman/coins-db.postman_collection.json` (summary request with a
+      `type` query param) and refresh `review.md`.
