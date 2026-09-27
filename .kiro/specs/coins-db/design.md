@@ -481,12 +481,39 @@ Decided in Phase 1, applied consistently:
   / the request `?lang=`), defaulting to English. CSV is a lossy, presentational
   snapshot; **JSON is the format for exact round-trips** (it carries codes and
   the full `lookups` section).
+## Web i18n (UI localization)
+
+The SPA uses a small, hand-rolled i18n layer (no runtime dependency), hardened
+to guarantee completeness and correct formatting (Req 9). Data values are
+localized separately via the lookup vocabularies (Req 8); this section is about
+static UI text and value formatting.
+
+- **Dictionaries split by area.** Message strings live in per-area modules
+  (`i18n/messages/nav.ts`, `coin.ts`, `summary.ts`, `settings.ts`, `common.ts`,
+  `app.ts`, `lookup.ts`) composed into one `en` and one `nb` map, so features add
+  keys without editing a single monolithic file.
+- **Typed keys + completeness guard.** `en` is the source of truth; a
+  `MessageKey = keyof typeof en` type constrains `t(key, params?)`, so a
+  mistyped/undefined key is a `vue-tsc` compile error. Each other locale is
+  declared `Record<MessageKey, string>`, so a missing (or extra) translation
+  fails the type check at build time — the enforcement mechanism, chosen over a
+  runtime test to avoid adding a test-runner dependency. Missing keys still fall
+  back to English at runtime as a last resort.
+- **Formatting via `Intl`.** `useI18n` exposes `n(value, options?)` and
+  `d(dateISO, options?)` backed by `Intl.NumberFormat` / `Intl.DateTimeFormat`
+  keyed on the active locale, plus a currency helper for EUR amounts. Views use
+  these instead of `toFixed`/manual `€` concatenation and raw ISO dates.
+- **Plurals.** `t()` accepts a message value that is either a string or a
+  `{ one, other }` object; when a `count` param is supplied it selects the form
+  via `Intl.PluralRules` for the active locale. Keeps the common singular/plural
+  case correct without an ICU dependency.
+- **Coverage.** All views route user-facing text through `t()`. Exempt by design:
+  accent-color names (proper names) and each language's own selector label.
+- **Migration path.** If the app later needs full ICU MessageFormat, lazy locale
+  bundles, or extraction tooling, this layer can be swapped for `vue-i18n`; the
+  `t/n/d` call sites are the stable surface.
 
 ## Security / Safety
-
-- Single-user, local. No auth in v1 (API binds to localhost by default).
-- All DB access uses parameterized statements (no string interpolation).
-- Import validates and sanitizes input, and runs inside a single transaction so a
   bad file cannot partially corrupt the DB.
 - Image copy validates type/size and writes atomically (temp file + rename).
 
