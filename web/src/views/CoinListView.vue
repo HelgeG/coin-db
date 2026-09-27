@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import { api } from '../api/client'
 import type { Coin, CoinSearchParams } from '../api/types'
 import { useI18n } from '../composables/useI18n'
+import LookupFilter from '../components/LookupFilter.vue'
 
 const { t } = useI18n()
 
@@ -70,10 +71,7 @@ onMounted(load)
         <label for="f-text">{{ t('common.search') }}</label>
         <input id="f-text" v-model="form.text" :placeholder="t('collection.searchPlaceholder')" />
       </div>
-      <div class="field">
-        <label for="f-country">{{ t('collection.country') }}</label>
-        <input id="f-country" v-model="form.country" />
-      </div>
+      <LookupFilter kind="country" :label="t('collection.country')" v-model="form.country" />
       <div class="field">
         <label for="f-year-from">{{ t('collection.yearFrom') }}</label>
         <input id="f-year-from" v-model="form.year_from" type="number" />
@@ -82,18 +80,20 @@ onMounted(load)
         <label for="f-year-to">{{ t('collection.yearTo') }}</label>
         <input id="f-year-to" v-model="form.year_to" type="number" />
       </div>
-      <div class="field">
-        <label for="f-denom">{{ t('collection.denomination') }}</label>
-        <input id="f-denom" v-model="form.denomination" />
-      </div>
+      <LookupFilter
+        kind="denomination"
+        :label="t('collection.denomination')"
+        v-model="form.denomination"
+      />
       <div class="field">
         <label for="f-grade">{{ t('collection.grade') }}</label>
         <input id="f-grade" v-model="form.grade" />
       </div>
-      <div class="field">
-        <label for="f-metal">{{ t('collection.metal') }}</label>
-        <input id="f-metal" v-model="form.metal" />
-      </div>
+      <LookupFilter
+        kind="composition"
+        :label="t('collection.composition')"
+        v-model="form.metal"
+      />
       <div class="field">
         <label for="f-min">{{ t('collection.minEur') }}</label>
         <input id="f-min" v-model="form.min_eur" type="number" step="0.01" />
