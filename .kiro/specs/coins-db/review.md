@@ -95,4 +95,11 @@ passing; the web SPA typechecks and builds.
   for shape, not membership/reachability/calendar validity.
 - **SPA end-to-end tests.** Verified via typecheck + production build and a
   documented manual smoke test; automated browser E2E (Playwright) is deferred.
+- **CSV export is one-row-per-coin and omits child collections.** Each row holds
+  the coin's own fields plus only its **latest** value estimate; a coin's
+  reference links (and the full estimate history and images) are not represented,
+  since a variable number of links/estimates does not fit a single row. The
+  lossless path for those is the JSON export. *Future improvement:* optionally
+  fold reference links into the CSV (e.g. a single `reference_links` column
+  concatenating `label|url` pairs) for a more complete spreadsheet snapshot.
 - **REST API is unauthenticated and localhost-only** by design (single-user v1).
