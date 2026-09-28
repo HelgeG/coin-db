@@ -304,6 +304,28 @@ is a clean, breaking `user_version` bump:
   removed together. Deleting a coin calls `ImageService::purge_coin_images` first
   (files + rows), since the DB row cascade alone would orphan the files.
 
+## Import / export
+
+- **JSON** export/import is the code-based, self-contained backup path (full
+  graph + a `lookups` section) used for exact round-trips; it is unaffected here.
+- **CSV** export (`collection_io::export_csv`) is a flattened, one-row-per-coin,
+  human-readable snapshot: the coin's columns plus its latest estimate
+  (amount + date), with every encoded field (country, denomination, composition,
+  mint, currency, unit) rendered as its **localized display name** in the request
+  language — never codes. Rows are ordered by coin id.
+- CSV export takes an optional `CoinQuery`, so it can emit either the whole
+  collection or the **filtered subset** matching a search. It reuses the existing
+  search path to select the coins (same filter/matching rules as `GET /coins`);
+  it does not duplicate the WHERE-clause builder. The no-argument overload
+  (whole-collection, used by CLI/backup) is defined in terms of an empty query, so
+  there is a single row-emitting code path. The search sort is intentionally
+  ignored for export — CSV is always id-ordered.
+- The web Collection screen exports the **last executed search** (the filters that
+  produced the on-screen results), not any unapplied edits to the search form:
+  the client builds an `/export?format=csv&…` URL from the same params object used
+  for the last `GET /coins`, and the server responds with `text/csv` and a
+  `Content-Disposition: attachment` filename so the browser downloads a file.
+
 ## Value Handling
 
 - Coin face value keeps its own `currency` lookup entry and an optional currency
@@ -404,6 +426,7 @@ value sorting work off the current value.
 | GET    | /currencies/{id}/units        | List a currency's units (localized) |
 | POST   | /currencies/{id}/units        | Create/resolve a unit (name)     |
 | GET    | /export?format=json\|csv&lang= | Export (JSON codes; CSV localized) |
+|        |   &country=&year_from=&…       | CSV also honors the /coins search filters (filtered subset; id order) |
 | POST   | /import                       | JSON import                      |
 
 `{kind}` is one of `country`, `denomination`, `composition`, `mint`, `currency`.
