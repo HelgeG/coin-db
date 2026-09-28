@@ -691,11 +691,14 @@ void register_routes(httplib::Server& server, CollectionService& service) {
     respond(res, 201, currency_unit_json(unit, lang));
   });
 
-  // Export (JSON by default, ?format=csv for CSV).
+  // Export (JSON by default, ?format=csv for CSV). CSV honors the /coins search
+  // filters (a filtered subset; id-ordered) and the active language.
   server.Get("/export", [&service](const Request& req, Response& res) {
     if (req.get_param_value("format") == "csv") {
+      const CoinQuery query = query_from_request(req);
       res.status = 200;
-      res.set_content(service.export_csv(), "text/csv");
+      res.set_header("Content-Disposition", "attachment; filename=\"collection.csv\"");
+      res.set_content(service.export_csv(query), "text/csv");
     } else {
       res.status = 200;
       res.set_content(service.export_json(), "application/json");

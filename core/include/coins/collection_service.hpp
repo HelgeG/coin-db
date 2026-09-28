@@ -106,6 +106,9 @@ class CollectionService {
       std::string_view json_text);
   /// CSV export with encoded fields rendered as localized names in `lang`.
   [[nodiscard]] std::string export_csv(std::string_view lang = "en");
+  /// CSV export of the coins matching `query` (its filters/free-text; the sort is
+  /// ignored — rows are id-ordered). Reuses the search path to select coins.
+  [[nodiscard]] std::string export_csv(const CoinQuery& query);
 
   /// Current date as an ISO 8601 string (used to default estimate dates).
   [[nodiscard]] std::string today() const;

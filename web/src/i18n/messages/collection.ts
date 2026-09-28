@@ -23,6 +23,7 @@ export const collection = {
     'collection.colComposition': 'Composition',
     'collection.colYear': 'Year',
     'collection.noMatch': 'No coins match.',
+    'collection.exportCsv': 'Export CSV',
   },
   nb: {
     'collection.title': 'Samling',
@@ -46,5 +47,6 @@ export const collection = {
     'collection.colComposition': 'Sammensetning',
     'collection.colYear': 'År',
     'collection.noMatch': 'Ingen mynter samsvarer.',
+    'collection.exportCsv': 'Eksporter CSV',
   },
 } satisfies AreaBundle
