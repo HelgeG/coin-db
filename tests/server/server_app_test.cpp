@@ -414,4 +414,31 @@ TEST_F(ServerAppTest, PutSettingsSetsBaseCurrencyByCode) {
   EXPECT_EQ(json::parse(get->body).at("base_currency").at("code").get<std::string>(), "NOK");
 }
 
+TEST_F(ServerAppTest, CsvExportHonorsSearchFiltersAndSetsAttachmentHeader) {
+  httplib::Client cli = client();
+  // One Norway coin (via the helper) and one United States coin.
+  create_coin();
+  const json us = {{"country", "United States"}, {"year_from", 1889}, {"year_to", 1889}};
+  const auto made = cli.Post("/coins", us.dump(), "application/json");
+  ASSERT_TRUE(made);
+  EXPECT_EQ(made->status, 201);
+
+  // Unfiltered CSV export contains both coins and downloads as an attachment.
+  const auto all = cli.Get("/export?format=csv");
+  ASSERT_TRUE(all);
+  EXPECT_EQ(all->status, 200);
+  EXPECT_EQ(all->get_header_value("Content-Type"), "text/csv");
+  EXPECT_NE(all->get_header_value("Content-Disposition").find("attachment"), std::string::npos);
+  EXPECT_NE(all->get_header_value("Content-Disposition").find("collection.csv"), std::string::npos);
+  EXPECT_NE(all->body.find("Norway"), std::string::npos);
+  EXPECT_NE(all->body.find("United States"), std::string::npos);
+
+  // Filtering by country=Norway restricts the export to the matching coin.
+  const auto filtered = cli.Get("/export?format=csv&country=Norway");
+  ASSERT_TRUE(filtered);
+  EXPECT_EQ(filtered->status, 200);
+  EXPECT_NE(filtered->body.find("Norway"), std::string::npos);
+  EXPECT_EQ(filtered->body.find("United States"), std::string::npos);
+}
+
 }  // namespace

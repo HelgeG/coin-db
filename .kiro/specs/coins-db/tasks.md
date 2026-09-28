@@ -301,20 +301,20 @@ Let the Collection screen export the results of the last executed search to a
 CSV file, using the existing flattened, localized one-row-per-coin format
 (id-ordered). No new formatting rules — only the row selection is scoped.
 
-- [ ] Core: add a query-aware `export_csv(db, const CoinQuery&, lang)` overload
+- [x] Core: add a query-aware `export_csv(db, const CoinQuery&, lang)` overload
       that emits the same columns/escaping/localized names as today but only for
       coins matching the query (reuse the existing search path — do not duplicate
       the WHERE-clause builder); redefine the no-arg overload as the empty-query
       case so there is one row-emitting path. Add the matching
       `CollectionService::export_csv(const CoinQuery&, lang)`. Core test: a
       filtered export returns only matching, localized rows (id order).
-- [ ] Server: `GET /export?format=csv` builds a `CoinQuery` from the same params
+- [x] Server: `GET /export?format=csv` builds a `CoinQuery` from the same params
       as `GET /coins` (reuse `query_from_request`), passes the request `lang`, and
       responds with `text/csv` + `Content-Disposition: attachment; filename=…`.
       No filter params keeps the whole-collection behavior. API test: filtered
       export returns only matching rows + the attachment header.
-- [ ] Web: `client.exportCsvUrl(params, lang)` (reuses the search `queryString`);
+- [x] Web: `client.exportCsvUrl(params, lang)` (reuses the search `queryString`);
       an "Export CSV" button on the Collection view whose href mirrors the **last
       executed search** params (not unapplied form edits). i18n key
       `collection.exportCsv` (en + nb). Typecheck + build.
-- [ ] Verify: full C++ build + ctest; web typecheck + build. Refresh `review.md`.
+- [x] Verify: full C++ build + ctest; web typecheck + build. Refresh `review.md`.

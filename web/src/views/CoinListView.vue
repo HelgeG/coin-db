@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { api } from '../api/client'
@@ -7,7 +7,7 @@ import type { Coin, CoinSearchParams } from '../api/types'
 import { useI18n } from '../composables/useI18n'
 import LookupFilter from '../components/LookupFilter.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const form = reactive({
   country: '',
@@ -26,6 +26,8 @@ const form = reactive({
 const coins = ref<Coin[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+/** The params of the last executed search — what the export mirrors. */
+const lastParams = ref<CoinSearchParams>({})
 
 function buildParams(): CoinSearchParams {
   const params: CoinSearchParams = { sort: form.sort, desc: form.desc }
@@ -44,14 +46,19 @@ function buildParams(): CoinSearchParams {
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
+  const params = buildParams()
   try {
-    coins.value = await api.searchCoins(buildParams())
+    coins.value = await api.searchCoins(params)
+    lastParams.value = params
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
     loading.value = false
   }
 }
+
+/** CSV export URL mirroring the last executed search (not unapplied form edits). */
+const exportCsvUrl = computed(() => api.exportCsvUrl(lastParams.value, locale.value))
 
 function yearText(coin: Coin): string {
   return coin.year_from === coin.year_to
@@ -118,6 +125,9 @@ onMounted(load)
     </div>
     <div class="actions">
       <button type="submit" class="btn btn-primary">{{ t('common.search') }}</button>
+      <a :href="exportCsvUrl" class="btn" download="collection.csv">{{
+        t('collection.exportCsv')
+      }}</a>
     </div>
   </form>
 

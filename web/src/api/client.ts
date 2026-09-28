@@ -85,6 +85,18 @@ export const api = {
   searchCoins(params: CoinSearchParams = {}): Promise<Coin[]> {
     return request<Coin[]>('GET', `/coins${queryString(params)}`)
   },
+  /**
+   * Absolute URL that streams a CSV export of the coins matching `params` (the
+   * same filters as `searchCoins`), localized to `lang`. Used as an anchor href
+   * so the browser downloads the file. With empty `params` it exports the whole
+   * collection.
+   */
+  exportCsvUrl(params: CoinSearchParams = {}, lang?: string): string {
+    const search = new URLSearchParams(queryString(params).replace(/^\?/, ''))
+    search.set('format', 'csv')
+    if (lang) search.set('lang', lang)
+    return `${BASE}/export?${search.toString()}`
+  },
   getCoin(id: number): Promise<CoinDetail> {
     return request<CoinDetail>('GET', `/coins/${id}`)
   },

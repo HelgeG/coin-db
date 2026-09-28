@@ -29,7 +29,7 @@ passing; the web SPA typechecks and builds.
   sort by year/country/latest value/date added; free-text over notes, country,
   denomination, and reference-link labels. ✅
 - Export the last executed search's matching results to CSV (same flattened,
-  localized format as the full CSV export; id-ordered). ⏳ (planned)
+  localized format as the full CSV export; id-ordered). ✅
 
 ### Req 4 — Value tracking and summaries
 - Collection summary: headline total in the base currency from each coin's
@@ -56,7 +56,7 @@ passing; the web SPA typechecks and builds.
   `?lang=` parameter (default English). ✅
 - CSV export can be scoped to the results of a search (`GET /export?format=csv`
   honors the `/coins` filter params); the whole-collection export is the
-  no-filter case. ⏳ (planned)
+  no-filter case. ✅
 - Import validates the whole graph first and runs in a single transaction, so a
   bad file changes nothing; the `lookups` section is resolved by code (reusing
   seeded rows) and coin references are remapped. ✅ (see limitation below)

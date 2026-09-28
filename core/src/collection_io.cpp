@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -381,6 +382,84 @@ void import_settings(db::Database& db, const json& settings) {
   }
 }
 
+// Shared CSV row-emitting path. When `id_filter` is non-null, only coins whose id
+// is in the set are written (rows are still selected in coin-id order by the SQL,
+// so the output stays id-ordered regardless of the filter). A null filter writes
+// every coin. Encoded fields render as localized names in `lang`.
+std::string export_csv_impl(db::Database& db, const std::unordered_set<Id>* id_filter,
+                            std::string_view lang) {
+  db::SqliteLookupRepository lookups{db};
+
+  // Resolves a lookup id to its localized display name (empty when unset).
+  auto name_of = [&](const std::optional<Id>& id) -> std::string {
+    if (!id.has_value()) return {};
+    if (auto entry = lookups.find_by_id(*id)) return entry->display_name(lang);
+    return {};
+  };
+  auto unit_name_of = [&](const std::optional<Id>& id) -> std::string {
+    if (!id.has_value()) return {};
+    if (auto unit = lookups.find_unit_by_id(*id)) return unit->display_name(lang);
+    return {};
+  };
+
+  std::string out =
+      "id,country,denomination,face_value,face_unit,currency,year_from,year_to,mint,mint_mark,"
+      "composition,weight_g,diameter_mm,grade_scale,grade_numeric,grade_label,acquired_date,"
+      "acquired_price,acquired_source,notes,created_at,updated_at,latest_estimate,"
+      "latest_estimate_at\n";
+
+  Statement stmt = db.prepare(
+      "SELECT " + std::string{kCoinColumns} +
+      ", le.amount, le.estimated_at FROM coin c LEFT JOIN (SELECT coin_id, amount, "
+      "estimated_at, ROW_NUMBER() OVER (PARTITION BY coin_id ORDER BY estimated_at DESC, id DESC) "
+      "AS rn FROM value_estimate) le ON le.coin_id = c.id AND le.rn = 1 ORDER BY c.id;");
+
+  while (stmt.step()) {
+    const Coin coin = map_coin(stmt);
+    if (id_filter != nullptr && !id_filter->contains(coin.id)) {
+      continue;
+    }
+    const std::optional<double> latest_amount = stmt.column_opt_double(22);
+    const std::optional<std::string> latest_at = stmt.column_opt_text(23);
+
+    const std::string fields[] = {std::to_string(coin.id),
+                                  csv_escape(name_of(coin.country_id)),
+                                  csv_escape(name_of(coin.denomination_id)),
+                                  csv_opt_double(coin.face_value),
+                                  csv_escape(unit_name_of(coin.face_unit_id)),
+                                  csv_escape(name_of(coin.currency_id)),
+                                  std::to_string(coin.year_from),
+                                  std::to_string(coin.year_to),
+                                  csv_escape(name_of(coin.mint_id)),
+                                  csv_opt_string(coin.mint_mark),
+                                  csv_escape(name_of(coin.composition_id)),
+                                  csv_opt_double(coin.weight_g),
+                                  csv_opt_double(coin.diameter_mm),
+                                  csv_opt_string(coin.grade_scale),
+                                  csv_opt_int(coin.grade_numeric),
+                                  csv_opt_string(coin.grade_label),
+                                  csv_opt_string(coin.acquired_date),
+                                  csv_opt_double(coin.acquired_price),
+                                  csv_opt_string(coin.acquired_source),
+                                  csv_opt_string(coin.notes),
+                                  csv_escape(coin.created_at),
+                                  csv_escape(coin.updated_at),
+                                  csv_opt_double(latest_amount),
+                                  csv_opt_string(latest_at)};
+
+    bool first = true;
+    for (const std::string& field : fields) {
+      if (!first) {
+        out += ',';
+      }
+      out += field;
+      first = false;
+    }
+    out += '\n';
+  }
+  return out;
+}
+
 }  // namespace
 
 std::string export_json(db::Database& db) {
@@ -547,73 +626,12 @@ std::expected<ImportStats, ValidationErrors> import_json(db::Database& db,
 }
 
 std::string export_csv(db::Database& db, std::string_view lang) {
-  db::SqliteLookupRepository lookups{db};
+  return export_csv_impl(db, nullptr, lang);
+}
 
-  // Resolves a lookup id to its localized display name (empty when unset).
-  auto name_of = [&](const std::optional<Id>& id) -> std::string {
-    if (!id.has_value()) return {};
-    if (auto entry = lookups.find_by_id(*id)) return entry->display_name(lang);
-    return {};
-  };
-  auto unit_name_of = [&](const std::optional<Id>& id) -> std::string {
-    if (!id.has_value()) return {};
-    if (auto unit = lookups.find_unit_by_id(*id)) return unit->display_name(lang);
-    return {};
-  };
-
-  std::string out =
-      "id,country,denomination,face_value,face_unit,currency,year_from,year_to,mint,mint_mark,"
-      "composition,weight_g,diameter_mm,grade_scale,grade_numeric,grade_label,acquired_date,"
-      "acquired_price,acquired_source,notes,created_at,updated_at,latest_estimate,"
-      "latest_estimate_at\n";
-
-  Statement stmt = db.prepare(
-      "SELECT " + std::string{kCoinColumns} +
-      ", le.amount, le.estimated_at FROM coin c LEFT JOIN (SELECT coin_id, amount, "
-      "estimated_at, ROW_NUMBER() OVER (PARTITION BY coin_id ORDER BY estimated_at DESC, id DESC) "
-      "AS rn FROM value_estimate) le ON le.coin_id = c.id AND le.rn = 1 ORDER BY c.id;");
-
-  while (stmt.step()) {
-    const Coin coin = map_coin(stmt);
-    const std::optional<double> latest_amount = stmt.column_opt_double(22);
-    const std::optional<std::string> latest_at = stmt.column_opt_text(23);
-
-    const std::string fields[] = {std::to_string(coin.id),
-                                  csv_escape(name_of(coin.country_id)),
-                                  csv_escape(name_of(coin.denomination_id)),
-                                  csv_opt_double(coin.face_value),
-                                  csv_escape(unit_name_of(coin.face_unit_id)),
-                                  csv_escape(name_of(coin.currency_id)),
-                                  std::to_string(coin.year_from),
-                                  std::to_string(coin.year_to),
-                                  csv_escape(name_of(coin.mint_id)),
-                                  csv_opt_string(coin.mint_mark),
-                                  csv_escape(name_of(coin.composition_id)),
-                                  csv_opt_double(coin.weight_g),
-                                  csv_opt_double(coin.diameter_mm),
-                                  csv_opt_string(coin.grade_scale),
-                                  csv_opt_int(coin.grade_numeric),
-                                  csv_opt_string(coin.grade_label),
-                                  csv_opt_string(coin.acquired_date),
-                                  csv_opt_double(coin.acquired_price),
-                                  csv_opt_string(coin.acquired_source),
-                                  csv_opt_string(coin.notes),
-                                  csv_escape(coin.created_at),
-                                  csv_escape(coin.updated_at),
-                                  csv_opt_double(latest_amount),
-                                  csv_opt_string(latest_at)};
-
-    bool first = true;
-    for (const std::string& field : fields) {
-      if (!first) {
-        out += ',';
-      }
-      out += field;
-      first = false;
-    }
-    out += '\n';
-  }
-  return out;
+std::string export_csv(db::Database& db, const std::vector<Id>& coin_ids, std::string_view lang) {
+  const std::unordered_set<Id> id_set(coin_ids.begin(), coin_ids.end());
+  return export_csv_impl(db, &id_set, lang);
 }
 
 }  // namespace coins

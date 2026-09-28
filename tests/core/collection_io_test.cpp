@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "coins/clock.hpp"
 #include "coins/coin.hpp"
@@ -224,6 +225,24 @@ TEST_F(CollectionIoTest, CsvExportHasHeaderAndOneRowPerCoin) {
   EXPECT_NE(csv.find("100"), std::string::npos);
   // Encoded fields render as their localized display name (not codes).
   EXPECT_NE(csv.find("Norway"), std::string::npos);
+}
+
+TEST_F(CollectionIoTest, CsvExportRestrictedToGivenIds) {
+  // Coins are created in order, so the Norway coin is id 1 and the US coin id 2.
+  const std::string only_norway = coins::export_csv(db_, std::vector<Id>{1});
+  EXPECT_TRUE(only_norway.starts_with("id,country,denomination,"));
+  EXPECT_EQ(line_count(only_norway), 2U);  // header + the single matching coin
+  EXPECT_NE(only_norway.find("Norway"), std::string::npos);
+  EXPECT_EQ(only_norway.find("United States"), std::string::npos);
+
+  // An empty id list yields a header-only CSV.
+  const std::string none = coins::export_csv(db_, std::vector<Id>{});
+  EXPECT_EQ(line_count(none), 1U);
+
+  // Order of the id list does not change the id-ordered output.
+  const std::string both = coins::export_csv(db_, std::vector<Id>{2, 1});
+  EXPECT_EQ(line_count(both), 3U);
+  EXPECT_LT(both.find("Norway"), both.find("United States"));
 }
 
 }  // namespace

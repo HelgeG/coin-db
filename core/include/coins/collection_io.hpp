@@ -4,7 +4,9 @@
 #include <expected>
 #include <string>
 #include <string_view>
+#include <vector>
 
+#include "coins/id.hpp"
 #include "coins/validation.hpp"
 
 namespace coins::db {
@@ -44,6 +46,14 @@ struct ImportStats {
 /// (country, denomination, composition, mint, currency, unit) are rendered as
 /// their localized display name in `lang` (no codes).
 [[nodiscard]] std::string export_csv(db::Database& db, std::string_view lang = "en");
+
+/// As `export_csv`, but restricted to the coins whose ids are in `coin_ids`
+/// (e.g. the result of a search). Rows keep the same columns/format and are
+/// ordered by coin id regardless of the order of `coin_ids`. An empty `coin_ids`
+/// yields a header-only CSV. Callers that want the whole collection use the
+/// overload above.
+[[nodiscard]] std::string export_csv(db::Database& db, const std::vector<Id>& coin_ids,
+                                     std::string_view lang = "en");
 
 }  // namespace coins
 

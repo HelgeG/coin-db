@@ -180,6 +180,17 @@ std::string CollectionService::export_csv(std::string_view lang) {
   return coins::export_csv(db_, lang);
 }
 
+std::string CollectionService::export_csv(const CoinQuery& query) {
+  db::SqliteCoinRepository coins{db_, clock_};
+  const std::vector<Coin> matches = coins.search(query);
+  std::vector<Id> ids;
+  ids.reserve(matches.size());
+  for (const Coin& coin : matches) {
+    ids.push_back(coin.id);
+  }
+  return coins::export_csv(db_, ids, query.lang);
+}
+
 std::string CollectionService::today() const {
   const std::string now = clock_.now_iso8601();
   return now.substr(0, 10);  // YYYY-MM-DD
