@@ -67,6 +67,11 @@ As a collector, I want to find coins quickly.
   display its localized name (see Req 8).
 - WHEN I view results, THEN I can sort by year, country, value estimate, or date added.
 - WHEN I search by free text, THEN it matches description, country, and reference labels.
+- WHEN I have run a search, THEN I can export the matching results to a **CSV
+  file** using the same flattened, localized format as the full CSV export (see
+  Req 6). The export mirrors the **last executed search** (its filters and
+  free-text), independent of any unapplied edits to the search form, and rows are
+  ordered by coin id. With no active filters this exports the whole collection.
 
 ### 4. Value tracking and summaries
 
@@ -105,6 +110,9 @@ As a collector, I want to back up and move my data.
 
 - WHEN I export, THEN the full collection is written to a portable format. Both
   **JSON** and **CSV** exports are supported.
+- WHERE I export to CSV, THEN I can export either the whole collection or the
+  results of the last executed search (a filtered subset); both use the same
+  flattened, one-row-per-coin format described below and are ordered by coin id.
 - WHERE I export to CSV, THEN encoded fields (country, denomination, composition,
   mint, currency, and currency unit) are written as their **localized display
   name in the active language** — never as codes — so the CSV is a
