@@ -52,10 +52,17 @@ const f = reactive({
 const currencyId = computed(() => (currency.value && currency.value.id > 0 ? currency.value.id : null))
 const addingUnit = computed(() => unitSelected.value === UNIT_NEW)
 
-function strOrNull(value: string): string | null {
-  return value.trim() === '' ? null : value
+// Number inputs (`<input type="number">`) get Vue's implicit `.number` modifier,
+// so their bound reactive value can be a `number` (or an empty string when cleared),
+// not always a string. These helpers therefore accept both and normalize safely.
+function strOrNull(value: string | number | null | undefined): string | null {
+  if (value == null) return null
+  const s = String(value)
+  return s.trim() === '' ? null : s
 }
-function numOrNull(value: string): number | null {
+function numOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null
+  if (typeof value === 'number') return Number.isNaN(value) ? null : value
   return value.trim() === '' ? null : Number(value)
 }
 
@@ -77,10 +84,14 @@ function faceUnitInput(): LookupInput {
 }
 
 function toInput(): CoinInput {
+  // `year_from`/`year_to` are number inputs, so their reactive values may already
+  // be numbers; `numOrNull` normalizes both string and number forms.
+  const yearFrom = numOrNull(f.year_from) ?? 0
+  const yearTo = numOrNull(f.year_to)
   return {
     country: toLookupInput(country.value),
-    year_from: Number(f.year_from),
-    year_to: f.year_to.trim() === '' ? Number(f.year_from) : Number(f.year_to),
+    year_from: yearFrom,
+    year_to: yearTo ?? yearFrom,
     denomination: toLookupInput(denomination.value),
     face_value: numOrNull(f.face_value),
     face_unit: faceUnitInput(),

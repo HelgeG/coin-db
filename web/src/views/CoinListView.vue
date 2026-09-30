@@ -7,7 +7,7 @@ import type { Coin, CoinSearchParams } from '../api/types'
 import { useI18n } from '../composables/useI18n'
 import LookupFilter from '../components/LookupFilter.vue'
 
-const { t, locale } = useI18n()
+const { t, n, locale } = useI18n()
 
 const form = reactive({
   country: '',
@@ -64,6 +64,16 @@ function yearText(coin: Coin): string {
   return coin.year_from === coin.year_to
     ? String(coin.year_from)
     : `${coin.year_from}\u2013${coin.year_to}`
+}
+
+/** Face value with its unit, e.g. "1 dollar" / "50 øre"; falls back to the
+ *  currency name, then a bare number, then an em dash when unset. The amount is
+ *  formatted for the active locale, which trims trailing zeros (1.0 -> "1"). */
+function faceValueText(coin: Coin): string {
+  if (coin.face_value == null) return '\u2014'
+  const amount = n(coin.face_value)
+  const unitName = coin.face_unit?.name ?? coin.currency?.name ?? ''
+  return unitName ? `${amount} ${unitName}` : amount
 }
 
 onMounted(load)
@@ -140,7 +150,7 @@ onMounted(load)
         <th>{{ t('collection.colId') }}</th>
         <th>{{ t('collection.country') }}</th>
         <th>{{ t('collection.colYear') }}</th>
-        <th>{{ t('collection.denomination') }}</th>
+        <th>{{ t('collection.colFaceValue') }}</th>
         <th>{{ t('collection.colCurrency') }}</th>
         <th>{{ t('collection.colComposition') }}</th>
       </tr>
@@ -150,7 +160,7 @@ onMounted(load)
         <td><RouterLink :to="`/coins/${coin.id}`">{{ coin.id }}</RouterLink></td>
         <td>{{ coin.country.name }}</td>
         <td>{{ yearText(coin) }}</td>
-        <td>{{ coin.denomination?.name ?? '' }}</td>
+        <td>{{ faceValueText(coin) }}</td>
         <td>{{ coin.currency?.name ?? '' }}</td>
         <td>{{ coin.composition?.name ?? '' }}</td>
       </tr>

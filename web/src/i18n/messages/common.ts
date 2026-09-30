@@ -25,11 +25,13 @@ export const common = {
     'common.loading': 'Loading…',
     'common.remove': 'Remove',
     'common.search': 'Search',
+    'common.close': 'Close',
   },
   nb: {
     'common.loading': 'Laster…',
     'common.remove': 'Fjern',
     'common.search': 'Søk',
+    'common.close': 'Lukk',
   },
 } satisfies AreaBundle
 
