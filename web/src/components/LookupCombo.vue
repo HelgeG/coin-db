@@ -52,7 +52,14 @@ function syncFromModel(ref_: LookupRef | null): void {
     newName.value = ''
   } else {
     selected.value = NEW
-    newName.value = ref_.name
+    // Don't clobber the text the user is actively typing. We emit a trimmed name,
+    // so an incoming ref whose name equals the current input trimmed is just the
+    // echo of our own update — writing it back would delete a trailing space the
+    // user just typed (making spaces impossible to enter). Only adopt the name
+    // when it genuinely differs (e.g. an external/parent-driven change).
+    if (ref_.name !== newName.value.trim()) {
+      newName.value = ref_.name
+    }
   }
 }
 

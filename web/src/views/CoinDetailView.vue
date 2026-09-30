@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { api, ApiError, imageUrl } from '../api/client'
@@ -10,7 +10,7 @@ import { useI18n } from '../composables/useI18n'
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 
-const { t, d, money } = useI18n()
+const { t, d, n, money } = useI18n()
 const { code: baseCurrencyCode, ensureLoaded } = useBaseCurrency()
 
 const coinId = computed(() => Number(props.id))
@@ -22,8 +22,9 @@ const error = ref<string | null>(null)
 const faceValueText = computed(() => {
   const c = coin.value
   if (c == null || c.face_value == null) return '—'
+  const amount = n(c.face_value)
   const unitName = c.face_unit?.name ?? c.currency?.name ?? ''
-  return unitName ? `${c.face_value} ${unitName}` : String(c.face_value)
+  return unitName ? `${amount} ${unitName}` : amount
 })
 
 const estimateForm = reactive({ amount: '', estimated_at: '', source: '' })
@@ -31,6 +32,23 @@ const linkForm = reactive({ label: '', url: '' })
 const imageForm = reactive({ kind: '' as '' | ImageKind, caption: '' })
 const imageFile = ref<File | null>(null)
 const actionError = ref<string | null>(null)
+
+/** Id of the image shown full-size in the lightbox overlay, or null when closed. */
+const lightboxImageId = ref<number | null>(null)
+/** The image record currently open in the lightbox (for its caption/alt). */
+const lightboxImage = computed(
+  () => coin.value?.images.find((img) => img.id === lightboxImageId.value) ?? null,
+)
+
+function openLightbox(id: number): void {
+  lightboxImageId.value = id
+}
+function closeLightbox(): void {
+  lightboxImageId.value = null
+}
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && lightboxImageId.value != null) closeLightbox()
+}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -122,6 +140,7 @@ async function removeImage(id: number): Promise<void> {
   actionError.value = null
   try {
     await api.removeImage(id)
+    if (lightboxImageId.value === id) closeLightbox()
     await load()
   } catch (e) {
     reportError(e)
@@ -141,6 +160,11 @@ async function deleteCoin(): Promise<void> {
 onMounted(() => {
   void ensureLoaded()
   void load()
+  window.addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -215,7 +239,14 @@ onMounted(() => {
       <div v-if="coin.images.length === 0" class="muted">{{ t('coin.noImages') }}</div>
       <div class="image-grid">
         <figure v-for="image in coin.images" :key="image.id" class="image-card">
-          <img :src="imageUrl(image.id)" :alt="image.caption ?? image.kind ?? t('coin.kind.image')" />
+          <button
+            type="button"
+            class="image-thumb"
+            :aria-label="t('coin.viewFullSize')"
+            @click="openLightbox(image.id)"
+          >
+            <img :src="imageUrl(image.id)" :alt="image.caption ?? image.kind ?? t('coin.kind.image')" />
+          </button>
           <figcaption>
             <span>{{ image.kind ?? t('coin.kind.image') }}</span>
             <span v-if="image.caption" class="muted"> · {{ image.caption }}</span>
@@ -238,5 +269,30 @@ onMounted(() => {
         <button type="submit" class="btn btn-primary">{{ t('coin.upload') }}</button>
       </form>
     </section>
+
+    <!-- Full-size image lightbox: opened by clicking a thumbnail; closes on
+         backdrop click, the close button, or Escape. -->
+    <div
+      v-if="lightboxImage"
+      class="lightbox"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="lightboxImage.caption ?? lightboxImage.kind ?? t('coin.kind.image')"
+      @click="closeLightbox"
+    >
+      <button type="button" class="lightbox-close" :aria-label="t('common.close')" @click="closeLightbox">
+        &times;
+      </button>
+      <figure class="lightbox-content" @click.stop>
+        <img
+          :src="imageUrl(lightboxImage.id)"
+          :alt="lightboxImage.caption ?? lightboxImage.kind ?? t('coin.kind.image')"
+        />
+        <figcaption v-if="lightboxImage.caption || lightboxImage.kind">
+          <span>{{ lightboxImage.kind ?? t('coin.kind.image') }}</span>
+          <span v-if="lightboxImage.caption"> · {{ lightboxImage.caption }}</span>
+        </figcaption>
+      </figure>
+    </div>
   </template>
 </template>
