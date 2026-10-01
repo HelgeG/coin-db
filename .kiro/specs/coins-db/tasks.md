@@ -318,3 +318,44 @@ CSV file, using the existing flattened, localized one-row-per-coin format
       executed search** params (not unapplied form edits). i18n key
       `collection.exportCsv` (en + nb). Typecheck + build.
 - [x] Verify: full C++ build + ctest; web typecheck + build. Refresh `review.md`.
+
+## Phase 16 — Web UX fixes + face-value column + image lightbox
+
+Frontend-only fixes/improvements over the SPA (no core/server changes).
+
+- [x] Fix the coin form save crash (`value.trim is not a function`): number
+      inputs carry Vue's implicit `.number` modifier, so `strOrNull`/`numOrNull`
+      and the year handling must accept `number | string`.
+- [x] Fix inability to type spaces in a lookup "Add new…" value (the model
+      watcher echoed the trimmed emit back into the input, deleting trailing
+      spaces); only adopt an incoming name when it differs from the current input.
+- [x] Collection list: add a localized "Face value" column (e.g. "1 cent",
+      "50 øre"), `Intl`-formatted to trim trailing zeros; drop the Denomination
+      column. i18n `collection.colFaceValue` (en + nb).
+- [x] Coin detail: click-to-zoom image lightbox (open on thumbnail click; close
+      on backdrop/×/Escape; auto-close if the shown image is deleted). i18n
+      `coin.viewFullSize`, `common.close`. Verify: web typecheck + build.
+
+## Phase 17 — Numista import helper (`scripts/numista-import.py`)
+
+A standalone helper (Python 3, stdlib only) that creates a coin from a Numista
+coin URL/type id by calling `coins_cli`. Tooling only — no core/server/web code.
+
+- [x] Fetch catalogue data from the **official Numista REST API v3**
+      (`GET /types/{id}`, `Numista-API-Key` from `NUMISTA_API_KEY`). Raw page
+      scraping is unsupported (Numista blocks non-browser clients with 403), so
+      the API key is required.
+- [x] Map fields to `coins_cli add`: issuer → country, min/max year →
+      year/year-to, value → denomination/face value/currency, composition,
+      weight, size → diameter. Title → notes.
+- [x] Store face value as the coin denominates it (parse `value.text`, e.g.
+      "1 Cent" → `--face-value 1 --face-unit cent`), not Numista's major-unit
+      `numeric_value` (0.01 dollar).
+- [x] `--year YYYY` pins a specific coin year (overrides the type range, clears
+      year-to; warns if outside the catalogued span).
+- [x] Attach the Numista page URL as a **reference link** (`coins link add`),
+      not in notes. Parse the new coin id from `add` output.
+- [x] `--obverse`/`--reverse` attach photos of the user's own coin from local
+      files (`coins image add`); paths validated before any coin is created.
+- [x] `--dry-run` prints the `coins_cli` commands; `COINS_CLI` overrides the
+      binary. Documented in `README.md` ("Import from Numista").
