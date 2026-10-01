@@ -25,6 +25,7 @@ export const collection = {
     'collection.colFaceValue': 'Face value',
     'collection.noMatch': 'No coins match.',
     'collection.exportCsv': 'Export CSV',
+    'collection.anyOption': 'Any',
   },
   nb: {
     'collection.title': 'Samling',
@@ -50,5 +51,6 @@ export const collection = {
     'collection.colFaceValue': 'Pålydende',
     'collection.noMatch': 'Ingen mynter samsvarer.',
     'collection.exportCsv': 'Eksporter CSV',
+    'collection.anyOption': 'Alle',
   },
 } satisfies AreaBundle
