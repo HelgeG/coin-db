@@ -111,6 +111,26 @@ a:hover {
   gap: 1rem;
   align-items: center;
 }
+/* Highlight the nav link for the current route. The compiler adds
+   `router-link-exact-active` to the <RouterLink> whose target matches the
+   current path exactly — using *exact* avoids the root ("/") Collection link
+   matching every route. Exclude the "Add coin" button, styled as a button. */
+.nav-links a:not(.btn) {
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.nav-links a:not(.btn):hover {
+  background: var(--input-bg);
+}
+.nav-links a.router-link-exact-active:not(.btn) {
+  background: var(--accent);
+  color: var(--accent-content);
+  font-weight: 600;
+}
+.nav-links a.router-link-exact-active:not(.btn):hover {
+  background: var(--accent);
+}
 
 .app-main {
   max-width: 960px;
