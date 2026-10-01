@@ -35,7 +35,7 @@ coins/
 │   ├── collection.sample.json # coins, estimates, links (image metadata empty)
 │   └── images/                # synthetic labeled placeholder coin images
 ├── scripts/                   # helper scripts: seed.sh, seed-images.sh,
-│                              #   gen-sample-images.sh
+│                              #   gen-sample-images.sh, numista-import.py
 ├── tests/                     # unit + integration tests
 │   ├── core/
 │   ├── cli/

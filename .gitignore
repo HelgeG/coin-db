@@ -31,3 +31,7 @@ Testing/
 *.sqlite
 *.sqlite3
 /data/
+
+# Python (helper scripts)
+__pycache__/
+*.pyc

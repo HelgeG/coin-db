@@ -110,6 +110,46 @@ The placeholders are synthetic (not real coin photos); regenerate them with
 `./scripts/gen-sample-images.sh` (needs `rsvg-convert`, e.g.
 `brew install librsvg`).
 
+### Import from Numista
+
+`scripts/numista-import.py` fetches a coin's catalogue data from
+[Numista](https://en.numista.com/) and creates an entry via `coins_cli add`. It
+accepts a Numista coin URL or type id (the `10203` in
+`https://en.numista.com/10203`).
+
+Numista blocks raw page scraping (HTTP 403 for non-browser clients), so the
+script uses the **official REST API v3**. Get a free API key from your Numista
+account (Profile → API) and set it as `NUMISTA_API_KEY` (required):
+
+```bash
+export NUMISTA_API_KEY=your-key-here
+
+# Preview the coins_cli command without running it:
+./scripts/numista-import.py https://en.numista.com/10203 --dry-run
+
+# Import into a data directory:
+./scripts/numista-import.py 10203 --data-dir mydata
+
+# Numista lists a year range for the type; pin your coin's actual year:
+./scripts/numista-import.py 10203 --year 1895 --data-dir mydata
+
+# Attach photos of your own coin (copied into the image store):
+./scripts/numista-import.py 10203 --obverse front.jpg --reverse back.jpg --data-dir mydata
+```
+
+It maps Numista fields to coins-db: issuer → country, year span → year/year-to,
+value → denomination/face value/currency, plus composition, weight, and diameter.
+The coin title goes into notes, and the Numista page URL is attached as a
+**reference link** on the coin (not stuffed into notes). Face value is stored as
+the coin denominates it (e.g. "1 cent", not "0.01 dollar"). Pass `--year YYYY` to
+record the specific year of your coin instead of Numista's catalogued range (it
+warns if the year falls outside that range but still uses it). Use `--obverse`
+and `--reverse` to attach photos of your own coin from local files. `country`
+and a `year` are required; if the source lacks them the script prints what it
+found and does **not** add the coin.
+
+Override the CLI binary with the `COINS_CLI` environment variable.
+
 ### Web frontend
 
 A Vue 3 + Vite + TypeScript SPA lives in `web/` and talks to the running
